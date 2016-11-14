@@ -197,3 +197,105 @@ def ComputeInstantSpeed(xpos, ypos, frameRate=250):
     dx = np.r_[0, np.diff(xpos)]
     dy = np.r_[0, np.diff(ypos)]
     return np.sqrt(dx**2 + dy**2) * frameRate
+
+
+def AssignDeltaAnglesToBouts(bouts, ang):
+    """
+    Uses the bouts identified in bouts together with an angle trace to
+    determine the heading angle of the fish before bout start and after
+    completion in order to determine the turn angle of the bout.
+    """
+    # takes a bout structure and an angle trace and uses pre/post bout averaging
+    # of angles to compute a deltaAngle for each bout
+    # returns deltaAngles for each bout
+
+    # we have to overcome the following problem: Angles are a circular quantity.
+    # This means that if the heading angle fluctuates around 0 it would actually
+    # get averaged to 180 ( (0+360)/2 ) instead of 0.
+    # Therefore, angles should be added as vector sums. Therefore for all pre-
+    # and post angles we compute the x and y vector component using cosine and
+    # sine respectively. These are added together and the pre- and post angles
+    # are computed using atan2. Subsequently the delta angle is computed based
+    # on the pre and post angles.
+    m = np.shape(bouts)[0]
+    dAngles = np.zeros(m)
+    preAngle = np.zeros(m)
+    postAngle = np.zeros(m)
+
+    mal = 50  # the maximum number of frames chosen across which we average
+
+    angles = np.deg2rad(ang - 180)  # renorm and copy
+
+    for i in range(m):
+        bStart = bouts[i, 0].astype(int)
+        bEnd = bouts[i, 2].astype(int)
+        if i == 0:  # for first bout we take whole past trace for start angle computation
+            if bStart <= mal:
+                sf = 1
+            else:
+                sf = bStart - mal
+        else:
+            bPrevEnd = bouts[i - 1, 2].astype(int)
+            if bStart - bPrevEnd <= mal:
+                sf = bPrevEnd
+            else:
+                sf = bStart - mal
+        # if(i==0)
+        preBoutX = np.nansum(np.cos(angles[sf:bStart]))
+        preBoutY = np.nansum(np.sin(angles[sf:bStart]))
+
+        if i == m - 1:  # for last bout we take trace up to end of experiment
+            if angles.size - bEnd <= mal:
+                ef = np.size(angles) - 1
+            else:
+                ef = bEnd + mal
+        else:
+            bNextStart = bouts[i + 1, 0].astype(int)
+            if bNextStart - bEnd <= mal:
+                ef = bNextStart
+            else:
+                ef = bEnd + mal
+                if ef >= angles.size:
+                    ef = np.size(angles) - 1
+        postBoutX = np.nansum(np.cos(angles[bEnd:ef]))
+        postBoutY = np.nansum(np.sin(angles[bEnd:ef]))
+        preAngle[i] = np.rad2deg(np.arctan2(preBoutY, preBoutX))
+        postAngle[i] = np.rad2deg(np.arctan2(postBoutY, postBoutX))
+        dAngles[i] = ComputeMinorDeltaAngle(preAngle[i], postAngle[i])
+    return dAngles, preAngle, postAngle
+
+
+def ComputeMinorDeltaAngle(angleFirst, angleSecond):
+    """
+    Computes the minimum angle of rotation going from angleFirst to
+    angleSecond
+    """
+
+    if angleFirst.size > 1 or angleSecond.size > 1:
+        # we have vector data - make sure it conforms
+        m1 = np.shape(angleFirst)
+        m2 = np.shape(angleSecond)
+
+        if np.size(m1) > 1 or np.size(m2) > 1:
+            raise ValueError('Function only accepts vector or scalar data')
+
+        if m1 != m2:
+            raise ValueError('Inputs to the function must have the same dimensions')
+
+    if angleFirst.size == 1:
+        # scalar data
+        dangle = angleSecond - angleFirst
+        if dangle > 180:
+            delta = dangle - 360
+        else:
+            if dangle < -180:
+                delta = 360 + dangle
+            else:
+                delta = dangle
+    else:
+        # vector data
+        dangle = angleSecond - angleFirst
+        delta = dangle
+        delta[dangle > 180] = dangle[dangle > 180] - 360
+        delta[dangle < -180] = dangle[dangle < -180] + 360
+    return delta
