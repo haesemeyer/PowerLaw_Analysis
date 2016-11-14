@@ -81,5 +81,5 @@ def peakdet(v, delta=None, x=None):
                 mxpos = x[i]
                 lookformax = True
 
-    return array(maxtab), array(mintab)
+    return array(maxtab).astype(int), array(mintab).astype(int)
 
