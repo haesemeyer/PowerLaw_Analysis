@@ -105,3 +105,32 @@ if __name__ == '__main__':
             sns.despine(fig, ax)
             ax.set_xlabel('Bout displacement [mm]')
             ax.set_ylabel('Bout delta-angle [degrees]')
+
+        # for each bout compute spline fit with overhang and then compute angular speed as well as curvature
+        overhang = 300  # overhang used to ensure that the data used does not suffer from edge effects
+        ang_speeds = np.array([])
+        curvatures = np.array([])
+        categories = np.array([])
+        for b, categ in zip(bouts, boutCategory):
+            # compute starts and ends of our stretch and only use if fully within dataset
+            s = int(b[0] - overhang)
+            if s < 0:
+                continue
+            e = int(b[2] + overhang)
+            if e >= x_f.size:
+                continue
+            xb = x_f[s:e]
+            yb = y_f[s:e]
+            tck, u = core.spline_fit(xb * ihb_pixelscale, yb * ihb_pixelscale)
+            a_spd = core.compute_angSpeed(tck, u, ihb_datarate)
+            curve = core.compute_curvature(tck, u)
+            # strip fit-overhang frames - but start data 20 ms earlier than actual start since turn often happens
+            # before the instant speed bout call assigns the start
+            start = overhang - int(20 / 1000 * ihb_datarate)
+            end = -1 * (overhang - 1)
+            a_spd = a_spd[start:end]
+            curve = curve[start:end]
+            ct = np.full_like(curve, categ)
+            ang_speeds = np.r_[ang_speeds, a_spd]
+            curvatures = np.r_[curvatures, curve]
+            categories = np.r_[categories, ct]
