@@ -15,6 +15,10 @@ import core
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
 
+# bout category dictionaries
+cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
+cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get our names back easily
+
 if __name__ == '__main__':
     fnames = core.UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle='Load data files')
     for name in fnames:
@@ -74,8 +78,6 @@ if __name__ == '__main__':
         boutRadius = np.sqrt((x_c[bends] - x_c[bstarts])**2 + (y_c[bends] - y_c[bstarts])**2)
         boutTheta = np.abs(core.AssignDeltaAnglesToBouts(bouts, heading)[0])
         # for each bout assign a category: -1 not in middle, 0 regular, 1 hunting, 2 escape
-        cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
-        cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get our names back easily
         boutCategory = np.zeros(bouts.shape[0])
         escape_frames = np.nonzero(escape)[0]
         for i, (bs, be) in enumerate(zip(bstarts, bends)):
