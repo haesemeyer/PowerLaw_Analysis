@@ -74,19 +74,20 @@ if __name__ == '__main__':
         boutRadius = np.sqrt((x_c[bends] - x_c[bstarts])**2 + (y_c[bends] - y_c[bstarts])**2)
         boutTheta = np.abs(core.AssignDeltaAnglesToBouts(bouts, heading)[0])
         # for each bout assign a category: -1 not in middle, 0 regular, 1 hunting, 2 escape
+        cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
         boutCategory = np.zeros(bouts.shape[0])
         escape_frames = np.nonzero(escape)[0]
         for i, (bs, be) in enumerate(zip(bstarts, bends)):
             if not inmiddle[bs]:
-                boutCategory[i] = -1
+                boutCategory[i] = cdict["exclude"]
             else:
                 # NOTE: Escapes are identified by a single 1 but this does not align with our bout calls
                 if np.min(np.abs(bs - escape_frames)) <= 25:
-                    boutCategory[i] = 2
+                    boutCategory[i] = cdict["escape"]
                 elif hunting[bs:be].sum() > 0:
-                    boutCategory[i] = 1
+                    boutCategory[i] = cdict["hunting"]
                 else:
-                    boutCategory[i] = 0
+                    boutCategory[i] = cdict["regular"]
 
         # plot bout radius vs. bout theta for our categories
         with sns.axes_style('white'):
