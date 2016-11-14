@@ -21,8 +21,12 @@ cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get
 
 if __name__ == '__main__':
     fnames = core.UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle='Load data files')
+    all_curvatures = np.array([])
+    all_angSpeeds = np.array([])
+    all_categories = np.array([])
+    all_exp_ids = np.array([])
 
-    for name in fnames:
+    for eid, name in enumerate(fnames):
         dfile = h5py.File(name, 'r')
         assert 'martindata' in dfile.keys()
         exp_data = np.array(dfile['martindata'])
@@ -143,6 +147,12 @@ if __name__ == '__main__':
         ang_speeds = ang_speeds[np.logical_not(nan_vals)]
         curvatures = curvatures[np.logical_not(nan_vals)]
         categories = categories[np.logical_not(nan_vals)]
+        # add to our global arrays
+        this_id = np.full_like(ang_speeds, eid)
+        all_angSpeeds = np.r_[all_angSpeeds, ang_speeds]
+        all_curvatures = np.r_[all_curvatures, curvatures]
+        all_categories = np.r_[all_categories, categories]
+        all_exp_ids = np.r_[all_exp_ids, this_id]
         # compute linear fits (mx + b)
         m_reg, b_reg, r_reg = core.compute_plFit(curvatures, ang_speeds, categories == 0)
         m_hnt, b_hnt, r_hnt = core.compute_plFit(curvatures, ang_speeds, categories == 1)
