@@ -21,6 +21,7 @@ cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get
 
 if __name__ == '__main__':
     fnames = core.UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle='Load data files')
+
     for name in fnames:
         dfile = h5py.File(name, 'r')
         assert 'martindata' in dfile.keys()
@@ -126,9 +127,9 @@ if __name__ == '__main__':
             tck, u = core.spline_fit(xb * ihb_pixelscale, yb * ihb_pixelscale)
             a_spd = core.compute_angSpeed(tck, u, ihb_datarate)
             curve = core.compute_curvature(tck, u)
-            # strip fit-overhang frames - but start data 20 ms earlier than actual start since turn often happens
+            # strip fit-overhang frames - but start data 15 ms earlier than actual start since turn often happens
             # before the instant speed bout call assigns the start
-            start = overhang - int(20 / 1000 * ihb_datarate)
+            start = overhang - int(15 / 1000 * ihb_datarate)
             end = -1 * (overhang - 1)
             a_spd = a_spd[start:end]
             curve = curve[start:end]
