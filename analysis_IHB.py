@@ -24,20 +24,22 @@ if __name__ == '__main__':
         assert exp_data.shape[0] == 8
         x_c = exp_data[1, :]
         y_c = exp_data[2, :]
-        inmiddle = exp_data[3, :]
+        inmiddle = exp_data[3, :].astype(bool)
         heading = exp_data[4, :]
-        looming = exp_data[5, :]
-        escape = exp_data[6, :]
-        hunting = exp_data[7, :]
+        looming = exp_data[5, :].astype(bool)
+        escape = exp_data[6, :].astype(bool)
+        hunting = exp_data[7, :].astype(bool)
         x_f, y_f = core.SmoothenTrack(x_c.copy(), y_c.copy(), 22)
         ispeed = core.ComputeInstantSpeed(x_f, y_f, ihb_datarate)
         frameTime = np.arange(x_c.size) / ihb_datarate
-        bouts = core.DetectBouts(ispeed, 50, 500)
+        bouts = core.DetectBouts(ispeed, 50, 500, speedThresholdAbsolute=40, maxFramesAtPeak=10)
 
         # plot dish occupancy as well as small data-slice for quality control
         with sns.axes_style('whitegrid'):
             fig, ax = pl.subplots()
-            ax.plot(x_c * ihb_pixelscale, y_c * ihb_pixelscale)
+            ax.plot(x_c[inmiddle] * ihb_pixelscale, y_c[inmiddle] * ihb_pixelscale, lw=1)
+            ax.plot(x_c[np.logical_not(inmiddle)] * ihb_pixelscale, y_c[np.logical_not(inmiddle)] * ihb_pixelscale,
+                    'r', lw=0.5)
             ax.set_xlabel('X position [mm]')
             ax.set_ylabel('Y position [mm]')
 
@@ -54,6 +56,14 @@ if __name__ == '__main__':
             ax_y.set_xlabel('Time [s]')
             ax_y.legend()
             ax_s.plot(frameTime[select], ispeed[select] * ihb_pixelscale)
+            bs = bouts[:, 0].astype(int)
+            bs = bs[bs >= select.start]
+            bs = bs[bs < select.stop]
+            be = bouts[:, 2].astype(int)
+            be = be[be >= select.start]
+            be = be[be < select.stop]
+            ax_s.plot(frameTime[bs], ispeed[bs] * ihb_pixelscale, 'r*')
+            ax_s.plot(frameTime[be], ispeed[be] * ihb_pixelscale, 'k*')
             ax_s.set_ylabel('Instant speed [mm/s]')
             ax_s.set_xlabel('Time [s]')
             fig.tight_layout()
