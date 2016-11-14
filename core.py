@@ -13,11 +13,11 @@ from peakfinder import peakdet
 from scipy.signal import filtfilt
 
 
-def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')]):
+def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')], diagTitle="Load files"):
     """
     Shows a file selection dialog and returns the path to the selected file(s)
     """
-    options = {'filetypes': filetypes, 'multiple': True}
+    options = {'filetypes': filetypes, 'multiple': True, 'title': diagTitle}
     tkinter.Tk().withdraw()  # Close the root window
     return filedialog.askopenfilename(**options)
 
