@@ -11,6 +11,8 @@ from tkinter import filedialog
 import numpy as np
 from peakfinder import peakdet
 from scipy.signal import filtfilt
+from scipy import interpolate
+from scipy.stats import linregress
 
 
 def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')], diagTitle="Load files"):
@@ -299,3 +301,58 @@ def ComputeMinorDeltaAngle(angleFirst, angleSecond):
         delta[dangle > 180] = dangle[dangle > 180] - 360
         delta[dangle < -180] = dangle[dangle < -180] + 360
     return delta
+
+
+def spline_fit(x, y):
+    """
+    Compute smoothened spline fit
+    """
+    return interpolate.splprep([x, y], u=np.arange(x.size), s=0.003)
+
+
+def compute_fitCoords(tck, u):
+    """
+    Compute coordinates of the given spline fit
+    """
+    return interpolate.splev(u, tck)
+
+
+def compute_angSpeed(tck, u, frameRate):
+    """
+    Compute the angular  speed of the tangent on the curve in
+    radians per second
+    """
+    dx, dy = interpolate.splev(u, tck, der=1)
+    angs = np.arctan2(dy, dx)
+    d_angs = np.r_[np.abs(np.diff(angs)), 0]
+    d_angs[d_angs > np.pi] = 2 * np.pi - d_angs[d_angs > np.pi]
+    return d_angs * frameRate
+
+
+def compute_curvature(tck, u):
+    """
+    Compute the curvature of a trajectory at each given point
+    """
+    dx, dy = interpolate.splev(u, tck, der=1)
+    ddx, ddy = interpolate.splev(u, tck, der=2)
+    curves = (dx * ddy - dy * ddx) / ((dx * dx + dy * dy) ** (3 / 2))
+    return np.abs(curves)
+
+
+def compute_plFit(cu, av, take):
+    """
+    Computes the linear fit between log10(cu) and log10(av)
+    Args:
+        cu: The curvature values
+        av: The angular velocity values
+        take: Logical identifying which cu and av should be part of the calculation
+
+    Returns:
+        [0]: The power law exponent (slope of the fit)
+        [1]: The intercept
+        [2]: The r-value
+    """
+    cut = cu[take]
+    avt = av[take]
+    keep = np.logical_and(cut > 0, avt > 0)
+    return linregress(np.log10(cut[keep]), np.log10(avt[keep]))[0:3]
