@@ -137,3 +137,42 @@ if __name__ == '__main__':
             ang_speeds = np.r_[ang_speeds, a_spd]
             curvatures = np.r_[curvatures, curve]
             categories = np.r_[categories, ct]
+
+        # remove nan-values
+        nan_vals = np.logical_or(np.isnan(ang_speeds), np.isnan(curvatures))
+        ang_speeds = ang_speeds[np.logical_not(nan_vals)]
+        curvatures = curvatures[np.logical_not(nan_vals)]
+        categories = categories[np.logical_not(nan_vals)]
+        # compute linear fits (mx + b)
+        m_reg, b_reg, r_reg = core.compute_plFit(curvatures, ang_speeds, categories == 0)
+        m_hnt, b_hnt, r_hnt = core.compute_plFit(curvatures, ang_speeds, categories == 1)
+        m_esc, b_esc, r_esc = core.compute_plFit(curvatures, ang_speeds, categories == 2)
+        # plot overview scatter across different bout categories as well as linear fit
+        xmin = -6
+        xmax = 6
+        with sns.axes_style('white'):
+            fig, axes = pl.subplots(ncols=3, sharey=True)
+            axes[0].scatter(np.log10(curvatures[categories == 0]), np.log10(ang_speeds[categories == 0]), s=5, c='b',
+                            alpha=0.5)
+            axes[0].plot([xmin, xmax], [m_reg*xmin+b_reg, m_reg*xmax+b_reg], 'b')
+            axes[0].set_ylabel('log10(Angular speed)')
+            axes[0].set_xlabel('log10(Curvature)')
+            axes[0].set_xlim(xmin, xmax)
+            axes[0].set_title("Regular bouts")
+            sns.despine(ax=axes[0])
+            axes[1].scatter(np.log10(curvatures[categories == 1]), np.log10(ang_speeds[categories == 1]), s=5, c='g',
+                            alpha=0.5)
+            axes[1].plot([xmin, xmax], [m_hnt * xmin + b_hnt, m_hnt * xmax + b_hnt], 'g')
+            axes[1].set_xlabel('log10(Curvature)')
+            axes[1].set_xlim(xmin, xmax)
+            axes[1].set_title("Hunting bouts")
+            sns.despine(ax=axes[1])
+            axes[2].scatter(np.log10(curvatures[categories == 2]), np.log10(ang_speeds[categories == 2]), s=5, c='r',
+                            alpha=0.5)
+            axes[2].plot([xmin, xmax], [m_esc * xmin + b_esc, m_esc * xmax + b_esc], 'r')
+            axes[2].set_xlabel('log10(Curvature)')
+            axes[2].set_xlim(xmin, xmax)
+            axes[2].set_title("Escapes")
+            sns.despine(ax=axes[2])
+            fig.tight_layout()
+
