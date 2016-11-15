@@ -360,6 +360,18 @@ def compute_plFit(cu, av, take):
     return linregress(np.log10(cut[keep]), np.log10(avt[keep]))[0:3]
 
 
+def cut_and_pad(trace, size):
+    """
+    Cuts trace to the desired size if too long and pads at the end with nan if too short
+    """
+    if trace.size > size:
+        return trace[:size].copy()
+    else:
+        retval = np.full(size, np.nan)
+        retval[:trace.size] = trace
+        return retval
+
+
 class LogLogFit:
     """
     Creates a log(curvature) log(angular velocity) fit and stores the retrieved information
