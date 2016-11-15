@@ -125,8 +125,11 @@ if __name__ == '__main__':
         ang_speeds = np.array([])
         curvatures = np.array([])
         categories = np.array([])
-        is_prePeak = np.array([], dtype=bool)  # for each frame indicates whether it occured before (True) or after peak speed frame
+        relTimes = np.array([])  # relative time within bout: 0-0.5 is before peak speed, 0.5-1 after till end of bout
         for b, categ in zip(bouts, boutCategory):
+            if b[1] <= b[0]:
+                print('Strange bout call. Peak before start. Skipped', flush=True)
+                continue
             # compute starts and ends of our stretch and only use if fully within dataset
             s = int(b[0] - overhang)
             if s < 0:
@@ -143,22 +146,30 @@ if __name__ == '__main__':
             # before the instant speed bout call assigns the start
             start = overhang - int(15 / 1000 * ihb_datarate)
             end = -1 * (overhang - 1)
+            peak_frame = int(b[1] - b[0]) + int(15 / 1000 * ihb_datarate)
             a_spd = a_spd[start:end]
             curve = curve[start:end]
             ct = np.full_like(curve, categ)
+            # create our relative time vector
+            rel_time = np.r_[np.linspace(0, 0.5, peak_frame, False), np.linspace(0.5, 1, curve.size - peak_frame)]
             ang_speeds = np.r_[ang_speeds, a_spd]
             curvatures = np.r_[curvatures, curve]
             categories = np.r_[categories, ct]
+            relTimes = np.r_[relTimes, rel_time]
 
         # remove nan-values
         nan_vals = np.logical_or(np.isnan(ang_speeds), np.isnan(curvatures))
         ang_speeds = ang_speeds[np.logical_not(nan_vals)]
         curvatures = curvatures[np.logical_not(nan_vals)]
         categories = categories[np.logical_not(nan_vals)]
+        relTimes = relTimes[np.logical_not(nan_vals)]
         # compute linear fits and add to lists
-        reg_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['regular'], cdict['regular'], basename)
-        hnt_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['hunting'], cdict['hunting'], basename)
-        esc_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['escape'], cdict['escape'], basename)
+        reg_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict['regular'], cdict['regular'],
+                                 basename)
+        hnt_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict['hunting'], cdict['hunting'],
+                                 basename)
+        esc_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict['escape'], cdict['escape'],
+                                 basename)
         all_fits.append(reg_fit)
         all_fits.append(hnt_fit)
         all_fits.append(esc_fit)
@@ -202,7 +213,6 @@ if __name__ == '__main__':
         sns.boxplot(data=intercepts, ax=ax_k, whis=np.inf, palette='muted')
         sns.swarmplot(data=intercepts, ax=ax_k, color='k', size=4)
         ax_k.set_ylabel('Intercept $k$')
-        ax_k.set_ylim(0.3, 0.8)
         sns.boxplot(data=r_sq, ax=ax_r, whis=np.inf, palette='muted')
         sns.swarmplot(data=r_sq, ax=ax_r, color='k', size=4)
         ax_r.set_ylabel('$R^2$')
