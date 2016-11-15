@@ -38,7 +38,7 @@ if __name__ == '__main__':
         x_f, y_f = core.SmoothenTrack(x_c.copy(), y_c.copy(), 21)
         ispeed = core.ComputeInstantSpeed(x_f, y_f, ihb_datarate)
         frameTime = np.arange(x_c.size) / ihb_datarate
-        bouts = core.DetectBouts(ispeed, 50, 500, speedThresholdAbsolute=40, maxFramesAtPeak=10)
+        bouts = core.DetectBouts(ispeed, 50, 500, speedThresholdAbsolute=35, maxFramesAtPeak=10)
 
         # plot dish occupancy as well as small data-slice for quality control
         with sns.axes_style('whitegrid'):
