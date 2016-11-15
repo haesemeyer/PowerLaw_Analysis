@@ -118,13 +118,14 @@ if __name__ == '__main__':
             ax.set_xlabel('Bout displacement [mm]')
             ax.set_ylabel('Bout delta-angle [degrees]')
             if sv:
-                fig.savefig(basename + '_scatterBoutChars.pdf', type='pdf')
+                fig.savefig(basename + '_scatterBoutChars.png', type='png')
 
         # for each bout compute spline fit with overhang and then compute angular speed as well as curvature
         overhang = 300  # overhang used to ensure that the data used does not suffer from edge effects
         ang_speeds = np.array([])
         curvatures = np.array([])
         categories = np.array([])
+        is_prePeak = np.array([], dtype=bool)  # for each frame indicates whether it occured before (True) or after peak speed frame
         for b, categ in zip(bouts, boutCategory):
             # compute starts and ends of our stretch and only use if fully within dataset
             s = int(b[0] - overhang)
@@ -184,22 +185,28 @@ if __name__ == '__main__':
             sns.despine(ax=axes[2])
             fig.tight_layout()
             if sv:
-                fig.savefig(basename + '_scatterFits.pdf', type='pdf')
+                fig.savefig(basename + '_scatterFits.png', type='png')
     # collect aggregate data and plot
     slopes = pandas.DataFrame({cat_decode[k]: [ft.slope for ft in all_fits if ft.category == k]
                                for k in cat_decode if k != -1})
+    intercepts = pandas.DataFrame({cat_decode[k]: [ft.intercept for ft in all_fits if ft.category == k]
+                                   for k in cat_decode if k != -1})
     r_sq = pandas.DataFrame({cat_decode[k]: [ft.rsquared for ft in all_fits if ft.category == k]
                              for k in cat_decode if k != -1})
     with sns.axes_style('whitegrid'):
-        fig, (ax_s, ax_r) = pl.subplots(ncols=2)
+        fig, (ax_s, ax_k, ax_r) = pl.subplots(ncols=3)
         sns.boxplot(data=slopes, ax=ax_s, whis=np.inf, palette='muted')
         sns.swarmplot(data=slopes, ax=ax_s, color='k', size=4)
         ax_s.set_ylabel('Slope $\\beta$')
         ax_s.set_ylim(0.5, 0.75)
+        sns.boxplot(data=intercepts, ax=ax_k, whis=np.inf, palette='muted')
+        sns.swarmplot(data=intercepts, ax=ax_k, color='k', size=4)
+        ax_k.set_ylabel('Intercept $k$')
+        ax_k.set_ylim(0.3, 0.8)
         sns.boxplot(data=r_sq, ax=ax_r, whis=np.inf, palette='muted')
         sns.swarmplot(data=r_sq, ax=ax_r, color='k', size=4)
         ax_r.set_ylabel('$R^2$')
         ax_r.set_ylim(0, 1)
         fig.tight_layout()
         if sv:
-            fig.savefig('slope_rsquared_overview.pdf', type='pdf')
+            fig.savefig('slope_rsquared_overview.png', type='png')
