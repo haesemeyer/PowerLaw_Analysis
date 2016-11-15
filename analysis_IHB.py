@@ -38,7 +38,7 @@ if __name__ == '__main__':
         looming = exp_data[5, :].astype(bool)
         escape = exp_data[6, :].astype(bool)
         hunting = exp_data[7, :].astype(bool)
-        x_f, y_f = core.SmoothenTrack(x_c.copy(), y_c.copy(), 22)
+        x_f, y_f = core.SmoothenTrack(x_c.copy(), y_c.copy(), 21)
         ispeed = core.ComputeInstantSpeed(x_f, y_f, ihb_datarate)
         frameTime = np.arange(x_c.size) / ihb_datarate
         bouts = core.DetectBouts(ispeed, 50, 500, speedThresholdAbsolute=40, maxFramesAtPeak=10)
