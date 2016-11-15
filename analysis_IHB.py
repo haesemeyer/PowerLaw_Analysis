@@ -11,6 +11,7 @@ import matplotlib.pyplot as pl
 import seaborn as sns
 import h5py
 import core
+import pandas
 
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
@@ -20,10 +21,15 @@ cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
 cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get our names back easily
 
 if __name__ == '__main__':
+    sv = ''
+    while sv != 'y' and sv != 'n':
+        sv = input('Save figures? [y/n]')
+    sv = sv == 'y'
     fnames = core.UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle='Load data files')
     all_fits = []  # list of log/log fits for each experiment
 
     for eid, name in enumerate(fnames):
+        basename = name[:name.find['.mat']]
         dfile = h5py.File(name, 'r')
         assert 'martindata' in dfile.keys()
         exp_data = np.array(dfile['martindata'])
@@ -109,6 +115,8 @@ if __name__ == '__main__':
             sns.despine(fig, ax)
             ax.set_xlabel('Bout displacement [mm]')
             ax.set_ylabel('Bout delta-angle [degrees]')
+            if sv:
+                fig.savefig(basename + '_scatterBoutChars.pdf', type='pdf')
 
         # for each bout compute spline fit with overhang and then compute angular speed as well as curvature
         overhang = 300  # overhang used to ensure that the data used does not suffer from edge effects
@@ -145,9 +153,9 @@ if __name__ == '__main__':
         curvatures = curvatures[np.logical_not(nan_vals)]
         categories = categories[np.logical_not(nan_vals)]
         # compute linear fits and add to lists
-        reg_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['regular'], cdict['regular'], name)
-        hnt_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['hunting'], cdict['hunting'], name)
-        esc_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['escape'], cdict['escape'], name)
+        reg_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['regular'], cdict['regular'], basename)
+        hnt_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['hunting'], cdict['hunting'], basename)
+        esc_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['escape'], cdict['escape'], basename)
         all_fits.append(reg_fit)
         all_fits.append(hnt_fit)
         all_fits.append(esc_fit)
@@ -173,4 +181,23 @@ if __name__ == '__main__':
             axes[2].set_title("Escapes")
             sns.despine(ax=axes[2])
             fig.tight_layout()
-
+            if sv:
+                fig.savefig(basename + '_scatterFits.pdf', type='pdf')
+    # collect aggregate data and plot
+    slopes = pandas.DataFrame({cat_decode[k]: [ft.slope for ft in all_fits if ft.category == k]
+                               for k in cat_decode if k != -1})
+    r_sq = pandas.DataFrame({cat_decode[k]: [ft.rsquared for ft in all_fits if ft.category == k]
+                             for k in cat_decode if k != -1})
+    with sns.axes_style('whitegrid'):
+        fig, (ax_s, ax_r) = pl.subplots(ncols=2)
+        sns.boxplot(data=slopes, ax=ax_s, whis=np.inf, palette='muted')
+        sns.swarmplot(data=slopes, ax=ax_s, color='k', size=4)
+        ax_s.set_ylabel('Slope $\\beta$')
+        ax_s.set_ylim(0.5, 0.75)
+        sns.boxplot(data=r_sq, ax=ax_r, whis=np.inf, palette='muted')
+        sns.swarmplot(data=r_sq, ax=ax_r, color='k', size=4)
+        ax_r.set_ylabel('$R^2$')
+        ax_r.set_ylim(0, 1)
+        fig.tight_layout()
+        if sv:
+            fig.savefig('slope_rsquared_overview.pdf', type='pdf')
