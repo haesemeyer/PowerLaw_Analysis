@@ -16,6 +16,9 @@ import os
 
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
+# start data 20 ms earlier than actual start since turn often happens
+# before the instant speed bout call assigns the start
+preStartms = 30
 
 # bout category dictionaries
 cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
@@ -142,11 +145,10 @@ if __name__ == '__main__':
             tck, u = core.spline_fit(xb * ihb_pixelscale, yb * ihb_pixelscale)
             a_spd = core.compute_angSpeed(tck, u, ihb_datarate)
             curve = core.compute_curvature(tck, u)
-            # strip fit-overhang frames - but start data 15 ms earlier than actual start since turn often happens
-            # before the instant speed bout call assigns the start
-            start = overhang - int(15 / 1000 * ihb_datarate)
+            # strip fit-overhang frames
+            start = overhang - int(preStartms / 1000 * ihb_datarate)
             end = -1 * (overhang - 1)
-            peak_frame = int(b[1] - b[0]) + int(15 / 1000 * ihb_datarate)
+            peak_frame = int(b[1] - b[0]) + int(preStartms / 1000 * ihb_datarate)
             a_spd = a_spd[start:end]
             curve = curve[start:end]
             ct = np.full_like(curve, categ)
