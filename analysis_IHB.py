@@ -31,6 +31,8 @@ if __name__ == '__main__':
     sv = sv == 'y'
     fnames = core.UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle='Load data files')
     all_fits = []  # list of log/log fits for each experiment
+    bout_curves = []  # list of 2-element tuples with curvature for each bout and it's category
+    bout_aspeeds = []  # list of 2-element tuples with angular speeds for each bouts and it's category
 
     for eid, name in enumerate(fnames):
         basename = os.path.basename(name)
@@ -158,6 +160,8 @@ if __name__ == '__main__':
             curvatures = np.r_[curvatures, curve]
             categories = np.r_[categories, ct]
             relTimes = np.r_[relTimes, rel_time]
+            bout_curves.append((core.cut_and_pad(curve, int(130 / 1000 * ihb_datarate)), categ))
+            bout_aspeeds.append((core.cut_and_pad(a_spd, int(130 / 1000 * ihb_datarate)), categ))
 
         # remove nan-values
         nan_vals = np.logical_or(np.isnan(ang_speeds), np.isnan(curvatures))
@@ -222,3 +226,26 @@ if __name__ == '__main__':
         fig.tight_layout()
         if sv:
             fig.savefig('slope_rsquared_overview.png', type='png')
+
+    # for each of our categories, plot the average development of angular speed and curvature
+    bc_reg = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'regular'])
+    ba_reg = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'regular'])
+    bc_hnt = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'hunting'])
+    ba_hnt = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'hunting'])
+    bc_esc = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'escape'])
+    ba_esc = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'escape'])
+    plotTime = (np.arange(bc_reg.shape[1])-int(preStartms / 1000 * ihb_datarate)) / ihb_datarate * 1000
+    with sns.axes_style('whitegrid'):
+        fig, (ax_c, ax_a) = pl.subplots(nrows=2, sharex=True)
+        sns.tsplot(data=bc_reg, time=plotTime, estimator=np.nanmean, ci=95, color='b', ax=ax_c)
+        sns.tsplot(data=bc_hnt, time=plotTime, estimator=np.nanmean, ci=95, color='g', ax=ax_c)
+        sns.tsplot(data=bc_esc, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_c)
+        ax_c.set_ylabel('log10(Curvature)')
+        sns.tsplot(data=ba_reg, time=plotTime, estimator=np.nanmean, ci=95, color='b', ax=ax_a)
+        sns.tsplot(data=ba_hnt, time=plotTime, estimator=np.nanmean, ci=95, color='g', ax=ax_a)
+        sns.tsplot(data=ba_esc, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_a)
+        ax_a.set_ylabel('log10(Angular speed)')
+        ax_a.set_xlabel('Time [ms]')
+        fig.tight_layout()
+        if sv:
+            fig.savefig('Speed_Curve_Bout_development.png', type='png')
