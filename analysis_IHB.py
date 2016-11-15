@@ -21,10 +21,7 @@ cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get
 
 if __name__ == '__main__':
     fnames = core.UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle='Load data files')
-    all_curvatures = np.array([])
-    all_angSpeeds = np.array([])
-    all_categories = np.array([])
-    all_exp_ids = np.array([])
+    all_fits = []  # list of log/log fits for each experiment
 
     for eid, name in enumerate(fnames):
         dfile = h5py.File(name, 'r')
@@ -147,39 +144,30 @@ if __name__ == '__main__':
         ang_speeds = ang_speeds[np.logical_not(nan_vals)]
         curvatures = curvatures[np.logical_not(nan_vals)]
         categories = categories[np.logical_not(nan_vals)]
-        # add to our global arrays
-        this_id = np.full_like(ang_speeds, eid)
-        all_angSpeeds = np.r_[all_angSpeeds, ang_speeds]
-        all_curvatures = np.r_[all_curvatures, curvatures]
-        all_categories = np.r_[all_categories, categories]
-        all_exp_ids = np.r_[all_exp_ids, this_id]
-        # compute linear fits (mx + b)
-        m_reg, b_reg, r_reg = core.compute_plFit(curvatures, ang_speeds, categories == 0)
-        m_hnt, b_hnt, r_hnt = core.compute_plFit(curvatures, ang_speeds, categories == 1)
-        m_esc, b_esc, r_esc = core.compute_plFit(curvatures, ang_speeds, categories == 2)
+        # compute linear fits and add to lists
+        reg_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['regular'], cdict['regular'], name)
+        hnt_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['hunting'], cdict['hunting'], name)
+        esc_fit = core.LogLogFit(curvatures, ang_speeds, categories == cdict['escape'], cdict['escape'], name)
+        all_fits.append(reg_fit)
+        all_fits.append(hnt_fit)
+        all_fits.append(esc_fit)
         # plot overview scatter across different bout categories as well as linear fit
         xmin = -6
         xmax = 6
         with sns.axes_style('white'):
             fig, axes = pl.subplots(ncols=3, sharey=True)
-            axes[0].scatter(np.log10(curvatures[categories == 0]), np.log10(ang_speeds[categories == 0]), s=5, c='b',
-                            alpha=0.5)
-            axes[0].plot([xmin, xmax], [m_reg*xmin+b_reg, m_reg*xmax+b_reg], 'b')
+            reg_fit.PlotFit(axes[0], 'b')
             axes[0].set_ylabel('log10(Angular speed)')
             axes[0].set_xlabel('log10(Curvature)')
             axes[0].set_xlim(xmin, xmax)
             axes[0].set_title("Regular bouts")
             sns.despine(ax=axes[0])
-            axes[1].scatter(np.log10(curvatures[categories == 1]), np.log10(ang_speeds[categories == 1]), s=5, c='g',
-                            alpha=0.5)
-            axes[1].plot([xmin, xmax], [m_hnt * xmin + b_hnt, m_hnt * xmax + b_hnt], 'g')
+            hnt_fit.PlotFit(axes[1], 'g')
             axes[1].set_xlabel('log10(Curvature)')
             axes[1].set_xlim(xmin, xmax)
             axes[1].set_title("Hunting bouts")
             sns.despine(ax=axes[1])
-            axes[2].scatter(np.log10(curvatures[categories == 2]), np.log10(ang_speeds[categories == 2]), s=5, c='r',
-                            alpha=0.5)
-            axes[2].plot([xmin, xmax], [m_esc * xmin + b_esc, m_esc * xmax + b_esc], 'r')
+            esc_fit.PlotFit(axes[2], 'r')
             axes[2].set_xlabel('log10(Curvature)')
             axes[2].set_xlim(xmin, xmax)
             axes[2].set_title("Escapes")
