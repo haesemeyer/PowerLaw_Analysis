@@ -14,6 +14,7 @@ from scipy.signal import filtfilt
 from scipy import interpolate
 from scipy.stats import linregress
 import matplotlib.pyplot as pl
+import seaborn as sns
 
 
 def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')], diagTitle="Load files"):
@@ -363,23 +364,34 @@ class LogLogFit:
     """
     Creates a log(curvature) log(angular velocity) fit and stores the retrieved information
     """
-    def __init__(self, cu, av, take, category_flag, name):
+    def __init__(self, cu, av, rt, take, category_flag, name):
+        """
+        Creates a new LogLogFit object
+        :param cu: The curvature trace
+        :param av: The angular velocity trace
+        :param rt: The relative time within bout
+        :param take: Which elements of the cu, av and rt traces to consider
+        :param category_flag: The category assigned to this fit
+        :param name: Experiment name
+        """
         self.category = category_flag
         self.name = name
         cut = cu[take]
         avt = av[take]
+        rtt = rt[take]
         keep = np.logical_and(cut > 0, avt > 0)
         self.logCurvature = np.log10(cut[keep])
         self.logAngularSpeed = np.log10(avt[keep])
+        self.relativeTime = rtt[keep]
         self.slope, self.intercept, self.rvalue, self.pvalue = linregress(self.logCurvature, self.logAngularSpeed)[0:4]
         self.rsquared = self.rvalue**2
 
     def PlotFit(self,  ax, color):
         """
         Plots a log-log scatter plot and a line corresponding to the fit
-        :param ax:
-        :param color:
-        :return:
+        :param ax: Axis to plot on. Will be created if None
+        :param color: Line plot color
+        :return: The axis object
         """
         if ax is None:
             fig, ax = pl.subplots()
@@ -387,5 +399,7 @@ class LogLogFit:
         xmax = self.logCurvature.max()
         y1 = xmin*self.slope + self.intercept
         y2 = xmax*self.slope + self.intercept
-        ax.scatter(self.logCurvature, self.logAngularSpeed, s=5, alpha=0.5, c=color)
-        ax.plot([xmin, xmax], [y1, y2], c=color)
+        cmap = sns.diverging_palette(240, 10, s=75, l=40, center="dark", as_cmap=True)
+        ax.scatter(self.logCurvature, self.logAngularSpeed, s=5, alpha=0.3, c=cmap(self.relativeTime))
+        ax.plot([xmin, xmax], [y1, y2], c=color, lw=1, ls='--')
+        return ax
