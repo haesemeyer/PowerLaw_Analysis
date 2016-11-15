@@ -13,6 +13,7 @@ from peakfinder import peakdet
 from scipy.signal import filtfilt
 from scipy import interpolate
 from scipy.stats import linregress
+import matplotlib.pyplot as pl
 
 
 def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')], diagTitle="Load files"):
@@ -356,3 +357,35 @@ def compute_plFit(cu, av, take):
     avt = av[take]
     keep = np.logical_and(cut > 0, avt > 0)
     return linregress(np.log10(cut[keep]), np.log10(avt[keep]))[0:3]
+
+
+class LogLogFit:
+    """
+    Creates a log(curvature) log(angular velocity) fit and stores the retrieved information
+    """
+    def __init__(self, cu, av, take, category_flag, name):
+        self.category = category_flag
+        self.name = name
+        cut = cu[take]
+        avt = av[take]
+        keep = np.logical_and(cut > 0, avt > 0)
+        self.logCurvature = np.log10(cut[keep])
+        self.logAngularSpeed = np.log10(avt[keep])
+        self.slope, self.intercept, self.rvalue, self.pvalue = linregress(self.logCurvature, self.logAngularSpeed)[0:4]
+        self.rsquared = self.rvalue**2
+
+    def PlotFit(self,  ax, color):
+        """
+        Plots a log-log scatter plot and a line corresponding to the fit
+        :param ax:
+        :param color:
+        :return:
+        """
+        if ax is None:
+            fig, ax = pl.subplots()
+        xmin = self.logCurvature.min()
+        xmax = self.logCurvature.max()
+        y1 = xmin*self.slope + self.intercept
+        y2 = xmax*self.slope + self.intercept
+        ax.scatter(self.logCurvature, self.logAngularSpeed, s=5, alpha=0.5, c=color)
+        ax.plot([xmin, xmax], [y1, y2], c=color)
