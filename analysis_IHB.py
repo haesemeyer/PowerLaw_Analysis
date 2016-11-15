@@ -12,6 +12,7 @@ import seaborn as sns
 import h5py
 import core
 import pandas
+import os
 
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
@@ -29,7 +30,8 @@ if __name__ == '__main__':
     all_fits = []  # list of log/log fits for each experiment
 
     for eid, name in enumerate(fnames):
-        basename = name[:name.find['.mat']]
+        basename = os.path.basename(name)
+        basename = basename[:basename.find('.mat')]
         dfile = h5py.File(name, 'r')
         assert 'martindata' in dfile.keys()
         exp_data = np.array(dfile['martindata'])
