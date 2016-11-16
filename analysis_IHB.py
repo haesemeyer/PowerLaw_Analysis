@@ -13,6 +13,7 @@ import h5py
 import core
 import pandas
 import os
+from scipy.stats import linregress
 
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
@@ -249,3 +250,53 @@ if __name__ == '__main__':
         fig.tight_layout()
         if sv:
             fig.savefig('Speed_Curve_Bout_development.png', type='png')
+
+    # analyze beta and k according to relative bout time
+    rt_edges = np.linspace(0, 1, 5)
+    rt_centers = rt_edges[:-1] + np.diff(rt_edges)/2
+    reg_timed_beta = np.zeros((len(fnames), rt_centers.size))
+    reg_timed_k = np.zeros_like(reg_timed_beta)
+    hnt_timed_beta = np.zeros_like(reg_timed_beta)
+    hnt_timed_k = np.zeros_like(reg_timed_beta)
+    esc_timed_beta = np.zeros_like(reg_timed_beta)
+    esc_timed_k = np.zeros_like(reg_timed_beta)
+    reg_count = hnt_count = esc_count = 0
+    for ft in all_fits:
+        if ft.category == cdict["regular"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                reg_timed_beta[reg_count, j] = beta
+                reg_timed_k[reg_count, j] = k
+            reg_count += 1
+        elif ft.category == cdict["hunting"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                hnt_timed_beta[hnt_count, j] = beta
+                hnt_timed_k[hnt_count, j] = k
+            hnt_count += 1
+        elif ft.category == cdict["escape"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                esc_timed_beta[esc_count, j] = beta
+                esc_timed_k[esc_count, j] = k
+            esc_count += 1
+
+    with sns.axes_style('whitegrid'):
+        fig, (ax_b, ax_k) = pl.subplots(nrows=2, sharex=True)
+        sns.tsplot(data=reg_timed_beta, time=rt_centers, color='b', ax=ax_b, interpolate=False, ci=95)
+        sns.tsplot(data=hnt_timed_beta, time=rt_centers, color='g', ax=ax_b, interpolate=False, ci=95)
+        sns.tsplot(data=esc_timed_beta, time=rt_centers, color='r', ax=ax_b, interpolate=False, ci=95)
+        ax_b.plot([0.5, 0.5], ax_b.get_ylim(), 'k--')
+        ax_b.set_ylabel('Slope $\\beta$')
+        sns.tsplot(data=reg_timed_k, time=rt_centers, color='b', ax=ax_k, interpolate=False, ci=95)
+        sns.tsplot(data=hnt_timed_k, time=rt_centers, color='g', ax=ax_k, interpolate=False, ci=95)
+        sns.tsplot(data=esc_timed_k, time=rt_centers, color='r', ax=ax_k, interpolate=False, ci=95)
+        ax_k.plot([0.5, 0.5], ax_k.get_ylim(), 'k--')
+        ax_k.set_ylabel('Intercept $k$')
+        ax_k.set_xlabel('Relative bout time [AU]')
+        fig.tight_layout()
+        if sv:
+            fig.savefig('Beta_K_development.png', type='png')
