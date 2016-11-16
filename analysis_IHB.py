@@ -133,8 +133,11 @@ if __name__ == '__main__':
         categories = np.array([])
         relTimes = np.array([])  # relative time within bout: 0-0.5 is before peak speed, 0.5-1 after till end of bout
         for b, categ in zip(bouts, boutCategory):
-            if b[1] <= b[0]:
+            if b[1] < b[0]:
                 print('Strange bout call. Peak before start. Skipped', flush=True)
+                continue
+            if b[1] == b[0]:
+                print('Peak at bout start. Skipped bout from analysis.', flush=True)
                 continue
             # compute starts and ends of our stretch and only use if fully within dataset
             s = int(b[0] - overhang)
