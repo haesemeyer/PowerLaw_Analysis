@@ -136,11 +136,10 @@ def DetectBouts(instantSpeed, minFramesPerBout, frameRate, **kwargs):
                     allPeakMags = np.zeros(nBouts)
                     for k in range(nBouts):
                         allSplitDisp[k] = np.sum(spds[allSplitStarts[k]:allSplitEnds[k]], dtype=float) / frameRate
-                        mag = np.max(spds[allSplitStarts[k]:allSplitEnds[k]])
-                        allPeakMags[k] = mag
-                        pk = np.nonzero(spds[allSplitStarts[k]:allSplitEnds[k]] == mag)
-                        allPeaks[k] = pk[0][0]
-                    allPeaks = allPeaks + bStart
+                        pk = np.argmax(spds[allSplitStarts[k]:allSplitEnds[k]])
+                        allPeaks[k] = pk + allSplitStarts[k]
+                        assert allPeaks[k] >= allSplitStarts[k]
+                        assert allPeaks[k] <= allSplitEnds[k]
                     # assign all
                     allSplitBouts[:, 0] = allSplitStarts
                     allSplitBouts[:, 1] = allPeaks
@@ -151,8 +150,7 @@ def DetectBouts(instantSpeed, minFramesPerBout, frameRate, **kwargs):
                     bouts = np.vstack((bouts, allSplitBouts))
                 else:
                     # we have a valid, singular bout
-                    peakframe = np.nonzero(b == b.max())
-                    peakframe = peakframe[0][0]
+                    peakframe = np.argmax(b)
                     # put peakframe into context
                     peakframe = bStart + peakframe
                     # a bout should not start on the peakframe
