@@ -52,7 +52,7 @@ if __name__ == '__main__':
         x_f, y_f = core.SmoothenTrack(x_c.copy(), y_c.copy(), 21)
         ispeed = core.ComputeInstantSpeed(x_f, y_f, ihb_datarate)
         frameTime = np.arange(x_c.size) / ihb_datarate
-        bouts = core.DetectBouts(ispeed, 50, 500, speedThresholdAbsolute=35, maxFramesAtPeak=10)
+        bouts = core.DetectBouts(ispeed, 50, ihb_datarate, speedThresholdAbsolute=35, maxFramesAtPeak=10)
 
         # plot dish occupancy as well as small data-slice for quality control
         with sns.axes_style('whitegrid'):
@@ -91,6 +91,7 @@ if __name__ == '__main__':
         # for each bout compute the distance between start and endpoint as well as the heading change
         bstarts = bouts[:, 0].astype(int)
         bends = bouts[:, 2].astype(int)
+        # NOTE: For escapes the bout displacement might be more meaningful than the startpoint endpoint distance!
         boutRadius = np.sqrt((x_c[bends] - x_c[bstarts])**2 + (y_c[bends] - y_c[bstarts])**2)
         boutTheta = np.abs(core.AssignDeltaAnglesToBouts(bouts, heading)[0])
         # for each bout assign a category: -1 not in middle, 0 regular, 1 hunting, 2 escape
