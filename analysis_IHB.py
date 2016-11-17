@@ -55,38 +55,41 @@ if __name__ == '__main__':
         bouts = core.DetectBouts(ispeed, 50, ihb_datarate, speedThresholdAbsolute=35, maxFramesAtPeak=10)
 
         # plot dish occupancy as well as small data-slice for quality control
-        with sns.axes_style('whitegrid'):
-            fig, ax = pl.subplots()
-            ax.plot(x_c[inmiddle] * ihb_pixelscale, y_c[inmiddle] * ihb_pixelscale, lw=1)
-            ax.plot(x_c[np.logical_not(inmiddle)] * ihb_pixelscale, y_c[np.logical_not(inmiddle)] * ihb_pixelscale,
-                    'r', lw=0.5)
-            ax.set_xlabel('X position [mm]')
-            ax.set_ylabel('Y position [mm]')
+        if eid % 5 == 0:
+            with sns.axes_style('whitegrid'):
+                fig, ax = pl.subplots()
+                ax.plot(x_c[inmiddle] * ihb_pixelscale, y_c[inmiddle] * ihb_pixelscale, lw=1)
+                ax.plot(x_c[np.logical_not(inmiddle)] * ihb_pixelscale, y_c[np.logical_not(inmiddle)] * ihb_pixelscale,
+                        'r', lw=0.5)
+                ax.set_xlabel('X position [mm]')
+                ax.set_ylabel('Y position [mm]')
+                ax.set_title(basename)
 
-            select = slice(700*60, 700*80)
-            fig, (ax_x, ax_y, ax_s) = pl.subplots(nrows=3)
-            ax_x.plot(frameTime[select], x_c[select] * ihb_pixelscale, label='Raw')
-            ax_x.plot(frameTime[select], x_f[select] * ihb_pixelscale, label='Filtered')
-            ax_x.set_ylabel('X position [mm]')
-            ax_x.set_xlabel('Time [s]')
-            ax_x.legend()
-            ax_y.plot(frameTime[select], y_c[select] * ihb_pixelscale, label='Raw')
-            ax_y.plot(frameTime[select], y_f[select] * ihb_pixelscale, label='Filtered')
-            ax_y.set_ylabel('Y position [mm]')
-            ax_y.set_xlabel('Time [s]')
-            ax_y.legend()
-            ax_s.plot(frameTime[select], ispeed[select] * ihb_pixelscale)
-            bs = bouts[:, 0].astype(int)
-            bs = bs[bs >= select.start]
-            bs = bs[bs < select.stop]
-            be = bouts[:, 2].astype(int)
-            be = be[be >= select.start]
-            be = be[be < select.stop]
-            ax_s.plot(frameTime[bs], ispeed[bs] * ihb_pixelscale, 'r*')
-            ax_s.plot(frameTime[be], ispeed[be] * ihb_pixelscale, 'k*')
-            ax_s.set_ylabel('Instant speed [mm/s]')
-            ax_s.set_xlabel('Time [s]')
-            fig.tight_layout()
+                select = slice(700*60, 700*80)
+                fig, (ax_x, ax_y, ax_s) = pl.subplots(nrows=3)
+                ax_x.plot(frameTime[select], x_c[select] * ihb_pixelscale, label='Raw')
+                ax_x.plot(frameTime[select], x_f[select] * ihb_pixelscale, label='Filtered')
+                ax_x.set_ylabel('X position [mm]')
+                ax_x.set_xlabel('Time [s]')
+                ax_x.legend()
+                ax_x.set_title(basename)
+                ax_y.plot(frameTime[select], y_c[select] * ihb_pixelscale, label='Raw')
+                ax_y.plot(frameTime[select], y_f[select] * ihb_pixelscale, label='Filtered')
+                ax_y.set_ylabel('Y position [mm]')
+                ax_y.set_xlabel('Time [s]')
+                ax_y.legend()
+                ax_s.plot(frameTime[select], ispeed[select] * ihb_pixelscale)
+                bs = bouts[:, 0].astype(int)
+                bs = bs[bs >= select.start]
+                bs = bs[bs < select.stop]
+                be = bouts[:, 2].astype(int)
+                be = be[be >= select.start]
+                be = be[be < select.stop]
+                ax_s.plot(frameTime[bs], ispeed[bs] * ihb_pixelscale, 'r*')
+                ax_s.plot(frameTime[be], ispeed[be] * ihb_pixelscale, 'k*')
+                ax_s.set_ylabel('Instant speed [mm/s]')
+                ax_s.set_xlabel('Time [s]')
+                fig.tight_layout()
 
         # for each bout compute the distance between start and endpoint as well as the heading change
         bstarts = bouts[:, 0].astype(int)
@@ -110,22 +113,23 @@ if __name__ == '__main__':
                     boutCategory[i] = cdict["regular"]
 
         # plot bout radius vs. bout theta for our categories
-        with sns.axes_style('white'):
-            fig, ax = pl.subplots()
-            ax.scatter(boutRadius[boutCategory == 0]*ihb_pixelscale, boutTheta[boutCategory == 0], c='b', s=10,
-                       alpha=0.7, label='Regular')
-            ax.scatter(boutRadius[boutCategory == 1]*ihb_pixelscale, boutTheta[boutCategory == 1], c='g', s=10,
-                       alpha=0.7, label='Hunt')
-            ax.scatter(boutRadius[boutCategory == 2]*ihb_pixelscale, boutTheta[boutCategory == 2], c='r', s=10,
-                       alpha=0.7, label='Escape')
-            ax.legend()
-            ax.set_xlim(0)
-            ax.set_ylim(0, 180)
-            sns.despine(fig, ax)
-            ax.set_xlabel('Bout displacement [mm]')
-            ax.set_ylabel('Bout delta-angle [degrees]')
-            if sv:
-                fig.savefig(basename + '_scatterBoutChars.png', type='png')
+        if eid % 5 == 0:
+            with sns.axes_style('white'):
+                fig, ax = pl.subplots()
+                ax.scatter(boutRadius[boutCategory == 0]*ihb_pixelscale, boutTheta[boutCategory == 0], c='b', s=10,
+                           alpha=0.7, label='Regular')
+                ax.scatter(boutRadius[boutCategory == 1]*ihb_pixelscale, boutTheta[boutCategory == 1], c='g', s=10,
+                           alpha=0.7, label='Hunt')
+                ax.scatter(boutRadius[boutCategory == 2]*ihb_pixelscale, boutTheta[boutCategory == 2], c='r', s=10,
+                           alpha=0.7, label='Escape')
+                ax.legend()
+                ax.set_xlim(0)
+                ax.set_ylim(0, 180)
+                sns.despine(fig, ax)
+                ax.set_xlabel('Bout displacement [mm]')
+                ax.set_ylabel('Bout delta-angle [degrees]')
+                if sv:
+                    fig.savefig(basename + '_scatterBoutChars.png', type='png')
 
         # for each bout compute spline fit with overhang and then compute angular speed as well as curvature
         overhang = 300  # overhang used to ensure that the data used does not suffer from edge effects
@@ -187,27 +191,28 @@ if __name__ == '__main__':
         # plot overview scatter across different bout categories as well as linear fit
         xmin = -6
         xmax = 6
-        with sns.axes_style('white'):
-            fig, axes = pl.subplots(ncols=3, sharey=True)
-            reg_fit.PlotFit(axes[0], 'b')
-            axes[0].set_ylabel('log10(Angular speed)')
-            axes[0].set_xlabel('log10(Curvature)')
-            axes[0].set_xlim(xmin, xmax)
-            axes[0].set_title("Regular bouts")
-            sns.despine(ax=axes[0])
-            hnt_fit.PlotFit(axes[1], 'g')
-            axes[1].set_xlabel('log10(Curvature)')
-            axes[1].set_xlim(xmin, xmax)
-            axes[1].set_title("Hunting bouts")
-            sns.despine(ax=axes[1])
-            esc_fit.PlotFit(axes[2], 'r')
-            axes[2].set_xlabel('log10(Curvature)')
-            axes[2].set_xlim(xmin, xmax)
-            axes[2].set_title("Escapes")
-            sns.despine(ax=axes[2])
-            fig.tight_layout()
-            if sv:
-                fig.savefig(basename + '_scatterFits.png', type='png')
+        if eid % 5 == 0:
+            with sns.axes_style('white'):
+                fig, axes = pl.subplots(ncols=3, sharey=True)
+                reg_fit.PlotFit(axes[0], 'b')
+                axes[0].set_ylabel('log10(Angular speed)')
+                axes[0].set_xlabel('log10(Curvature)')
+                axes[0].set_xlim(xmin, xmax)
+                axes[0].set_title("Regular bouts")
+                sns.despine(ax=axes[0])
+                hnt_fit.PlotFit(axes[1], 'g')
+                axes[1].set_xlabel('log10(Curvature)')
+                axes[1].set_xlim(xmin, xmax)
+                axes[1].set_title("Hunting bouts")
+                sns.despine(ax=axes[1])
+                esc_fit.PlotFit(axes[2], 'r')
+                axes[2].set_xlabel('log10(Curvature)')
+                axes[2].set_xlim(xmin, xmax)
+                axes[2].set_title("Escapes")
+                sns.despine(ax=axes[2])
+                fig.tight_layout()
+                if sv:
+                    fig.savefig(basename + '_scatterFits.png', type='png')
     # collect aggregate data and plot
     slopes = pandas.DataFrame({cat_decode[k]: [ft.slope for ft in all_fits if ft.category == k]
                                for k in cat_decode if k != -1})
