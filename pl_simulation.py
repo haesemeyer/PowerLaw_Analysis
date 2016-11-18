@@ -60,19 +60,19 @@ def angular_speed(t):
     return d_angs
 
 if __name__ == "__main__":
-    realtime = np.linspace(0, 100, 1000)
+    realtime = np.linspace(0, 100, 100000)
     # plot our trajectory and exact measures
     with sns.axes_style('white'):
         fig, axes = pl.subplots(2, 2)
         x, y = trajectory(realtime)
         axes[0, 0].plot(x, y)
         axes[0, 0].set_title('Trajectory')
-        axes[0, 1].plot(realtime, velocity(realtime))
-        axes[0, 1].set_title('Tangential velocity')
-        axes[1, 0].plot(realtime, curvature(realtime))
-        axes[1, 0].set_title('Curvature')
-        axes[1, 1].plot(realtime, angular_speed(realtime))
-        axes[1, 1].set_title('Angular speed')
+        axes[0, 1].plot(realtime, np.log10(velocity(realtime)))
+        axes[0, 1].set_title('log10(Tangential velocity)')
+        axes[1, 0].plot(realtime, np.log10(curvature(realtime)))
+        axes[1, 0].set_title('log10(Curvature)')
+        axes[1, 1].plot(realtime, np.log10(angular_speed(realtime)))
+        axes[1, 1].set_title('log10(Angular speed)')
         sns.despine()
         fig.tight_layout()
 
@@ -99,22 +99,26 @@ if __name__ == "__main__":
             warped[i] = warped[i-1] + l_table[i]
         return warped / warped.max() * timepoints.max()
 
-    sample_times = timewarp(np.linspace(0, 100, 100000))
+    sample_times = timewarp(realtime)
     # use spline-fitting to obtain angular speed and curvature on the noiseless trace
     tjx, tjy = trajectory(sample_times)
     tck, u = core.spline_fit(tjx, tjy)
     a_spd = core.compute_angSpeed(tck, u, 1)
     curve = core.compute_curvature(tck, u)
+    t_vel = core.compute_tangVelocity(tck, u, 1)
     # plot our resampled trajectory and measures
     with sns.axes_style('white'):
         fig, axes = pl.subplots(2, 2)
         axes[0, 0].plot(tjx, tjy)
         axes[0, 0].set_title('Trajectory - Resampled')
-        # axes[0, 1].plot(realtime, velocity(realtime))
-        axes[0, 1].set_title('Tangential velocity')
-        axes[1, 0].plot(np.linspace(0, 100, 100000), curve)
-        axes[1, 0].set_title('Curvature - Resampled')
-        axes[1, 1].plot(np.linspace(0, 100, 100000), a_spd)
-        axes[1, 1].set_title('Angular speed - Resampled')
+        axes[0, 1].plot(realtime, np.log10(t_vel))
+        axes[0, 1].set_title('log10(Tangential velocity)')
+        axes[1, 0].plot(realtime, np.log10(curve))
+        axes[1, 0].set_title('log10(Curvature) - Resampled')
+        axes[1, 1].plot(realtime, np.log10(a_spd))
+        axes[1, 1].set_title('log10(Angular speed) - Resampled')
         sns.despine()
         fig.tight_layout()
+    with sns.axes_style('white'):
+        sns.jointplot(np.log10(curve[:-1]), np.log10(a_spd[:-1]), kind='regplot')\
+            .set_axis_labels('log10(Curvature)', 'log10(Angular speed)')
