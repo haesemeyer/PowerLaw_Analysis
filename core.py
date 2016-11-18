@@ -317,6 +317,14 @@ def compute_fitCoords(tck, u):
     return interpolate.splev(u, tck)
 
 
+def compute_tangVelocity(tck, u, frameRate):
+    """
+    Computes the tangential velocity
+    """
+    dx, dy = interpolate.splev(u, tck, der=1)
+    return np.sqrt(dx**2 + dy**2) * frameRate
+
+
 def compute_angSpeed(tck, u, frameRate):
     """
     Compute the angular  speed of the tangent on the curve in
