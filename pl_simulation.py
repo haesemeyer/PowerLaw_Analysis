@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 import seaborn as sns
 import core
+from scipy.stats import linregress
 
 
 def trajectory(t):
@@ -58,6 +59,20 @@ def angular_speed(t):
     d_angs = np.r_[np.abs(np.diff(angs)), 0]
     d_angs[d_angs > np.pi] = 2 * np.pi - d_angs[d_angs > np.pi]
     return d_angs
+
+
+def fit_plot(x, y, ax, c='k'):
+    if ax is None:
+        fig, ax = pl.subplots()
+    ax.scatter(x, y, c=c, s=5, alpha=0.5)
+    no_nan = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
+    slope, inter, r = linregress(x[no_nan], y[no_nan])[0:3]
+    xmin = x[no_nan].min()
+    xmax = x[no_nan].max()
+    y1 = xmin*slope + inter
+    y2 = xmax*slope + inter
+    ax.plot([xmin, xmax], [y1, y2], color=c, ls="--")
+    ax.text(xmin, y2, "$R^2$ = " + str(round(r**2, 2)))
 
 if __name__ == "__main__":
     realtime = np.linspace(0, 100, 100000)
