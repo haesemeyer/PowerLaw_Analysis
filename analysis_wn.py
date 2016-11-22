@@ -23,7 +23,7 @@ mh_pixelscale = 1 / 9  # pixelsize in mm
 preStartms = 30
 
 # bout category dictionaries
-cdict = {"exclude": -1, "resting": 0, "stim": 1}
+cdict = {"exclude": -1, "slow straight": 0, "fast straight": 1, "slow turn": 2, "fast turn": 3}
 cat_decode = {v: k for k, v in cdict.items()}  # inverse dictionary to later get our names back easily
 
 
@@ -94,16 +94,19 @@ if __name__ == '__main__':
         bends = bouts[:, 2].astype(int)
         boutRadius = np.sqrt((x_c[bends] - x_c[bstarts]) ** 2 + (y_c[bends] - y_c[bstarts]) ** 2)
         boutTheta = np.abs(core.AssignDeltaAnglesToBouts(bouts, heading)[0])
-        # for each bout assign a category: -1 not in middle, 0 regular, 1 hunting, 2 escape
         boutCategory = np.zeros(bouts.shape[0])
-        for i, (bs, be) in enumerate(zip(bstarts, bends)):
+        for i, (bs, be, r, t) in enumerate(zip(bstarts, bends, boutRadius, boutTheta)):
             if not inmiddle[bs]:
                 boutCategory[i] = cdict["exclude"]
             else:
-                if phase[bs] == 3 and phase[be] == 3:
-                    boutCategory[i] = cdict["resting"]
-                elif phase[bs] == 6 and phase[be] == 6:
-                    boutCategory[i] = cdict["stim"]
+                if r <= 21.2 and np.abs(t) <= 5:  # slow straight
+                    boutCategory[i] = cdict["slow straight"]
+                elif r > 21.2 and np.abs(t) <= 5:  # fast (top 25%) straight
+                    boutCategory[i] = cdict["fast straight"]
+                elif r <= 21.2 and np.abs(t) > 5:  # slow turn
+                    boutCategory[i] = cdict["slow turn"]
+                elif r > 21.2 and np.abs(t) > 5:  # fast turn
+                    boutCategory[i] = cdict["fast turn"]
                 else:
                     boutCategory[i] = cdict["exclude"]
         # for each bout compute spline fit with overhang and then compute angular speed as well as curvature
@@ -154,29 +157,48 @@ if __name__ == '__main__':
         categories = categories[np.logical_not(nan_vals)]
         relTimes = relTimes[np.logical_not(nan_vals)]
         # compute linear fits and add to lists
-        rest_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict["resting"], cdict["resting"],
-                                  basename)
-        stim_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict["stim"], cdict["stim"],
-                                  basename)
-        all_fits.append(rest_fit)
-        all_fits.append(stim_fit)
+        ss_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict["slow straight"],
+                                cdict["slow straight"], basename)
+        fs_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict["fast straight"],
+                                cdict["fast straight"], basename)
+        st_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict["slow turn"],
+                                cdict["slow turn"], basename)
+        ft_fit = core.LogLogFit(curvatures, ang_speeds, relTimes, categories == cdict["fast turn"],
+                                cdict["fast turn"], basename)
+        all_fits.append(ss_fit)
+        all_fits.append(fs_fit)
+        all_fits.append(st_fit)
+        all_fits.append(ft_fit)
         # plot overview scatter across different bout categories as well as linear fit
         xmin = -6
         xmax = 6
         if eid % 5 == 0:
             with sns.axes_style('white'):
-                fig, axes = pl.subplots(ncols=3, sharey=True)
-                rest_fit.PlotFit(axes[0], 'b')
+                fig, axes = pl.subplots(nrows=2, ncols=2, sharey=True)
+                axes = axes.ravel()
+                ss_fit.PlotFit(axes[0], 'b')
                 axes[0].set_ylabel('log10(Angular speed)')
                 axes[0].set_xlabel('log10(Curvature)')
                 axes[0].set_xlim(xmin, xmax)
-                axes[0].set_title("Rest period bouts")
+                axes[0].set_title("Slow straight")
                 sns.despine(ax=axes[0])
-                stim_fit.PlotFit(axes[2], 'r')
+                fs_fit.PlotFit(axes[1], 'g')
+                axes[1].set_ylabel('log10(Angular speed)')
+                axes[1].set_xlabel('log10(Curvature)')
+                axes[1].set_xlim(xmin, xmax)
+                axes[1].set_title("Fast straight")
+                sns.despine(ax=axes[1])
+                st_fit.PlotFit(axes[2], 'm')
                 axes[2].set_xlabel('log10(Curvature)')
                 axes[2].set_xlim(xmin, xmax)
-                axes[2].set_title("Stim period bouts")
+                axes[2].set_title("Slow turn")
                 sns.despine(ax=axes[2])
+                ft_fit.PlotFit(axes[3], 'r')
+                axes[3].set_ylabel('log10(Angular speed)')
+                axes[3].set_xlabel('log10(Curvature)')
+                axes[3].set_xlim(xmin, xmax)
+                axes[3].set_title("Fast turn")
+                sns.despine(ax=axes[3])
                 fig.tight_layout()
                 if sv:
                     fig.savefig(basename + '_scatterFits.png', type='png')
@@ -193,7 +215,7 @@ if __name__ == '__main__':
         sns.boxplot(data=slopes, ax=ax_s, whis=np.inf, palette='muted')
         sns.swarmplot(data=slopes, ax=ax_s, color='k', size=4)
         ax_s.set_ylabel('Slope $\\beta$')
-        ax_s.set_ylim(0.5, 0.75)
+        ax_s.set_ylim(0.5, 1)
         sns.boxplot(data=intercepts, ax=ax_k, whis=np.inf, palette='muted')
         sns.swarmplot(data=intercepts, ax=ax_k, color='k', size=4)
         ax_k.set_ylabel('Intercept $k$')
