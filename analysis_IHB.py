@@ -14,6 +14,7 @@ import core
 import pandas
 import os
 from scipy.stats import linregress
+import matplotlib.cm as cm
 
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
@@ -193,7 +194,7 @@ if __name__ == '__main__':
         xmax = 6
         if eid % 5 == 0:
             with sns.axes_style('white'):
-                fig, axes = pl.subplots(ncols=3, sharey=True)
+                fig, axes = pl.subplots(ncols=4, sharey=True)
                 reg_fit.PlotFit(axes[0], 'b')
                 axes[0].set_ylabel('log10(Angular speed)')
                 axes[0].set_xlabel('log10(Curvature)')
@@ -205,11 +206,14 @@ if __name__ == '__main__':
                 axes[1].set_xlim(xmin, xmax)
                 axes[1].set_title("Hunting bouts")
                 sns.despine(ax=axes[1])
-                esc_fit.PlotFit(axes[2], 'r')
+                colmap = esc_fit.PlotFit(axes[2], 'r')[1]
                 axes[2].set_xlabel('log10(Curvature)')
                 axes[2].set_xlim(xmin, xmax)
                 axes[2].set_title("Escapes")
                 sns.despine(ax=axes[2])
+                sm = cm.ScalarMappable(cmap=colmap)
+                sm._A = []
+                axes[3].colorbar(sm)
                 fig.tight_layout()
                 if sv:
                     fig.savefig(basename + '_scatterFits.png', type='png')
