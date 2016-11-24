@@ -420,4 +420,4 @@ class LogLogFit:
         cmap = sns.diverging_palette(240, 10, s=75, l=40, center="dark", as_cmap=True)
         ax.scatter(self.logCurvature, self.logAngularSpeed, s=5, alpha=0.3, c=cmap(self.relativeTime))
         ax.plot([xmin, xmax], [y1, y2], c=color, lw=1, ls='--')
-        return ax
+        return ax, cmap
