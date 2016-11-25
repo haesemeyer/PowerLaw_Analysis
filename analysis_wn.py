@@ -89,23 +89,23 @@ if __name__ == '__main__':
                 ax_s.set_xlabel('Time [s]')
                 fig.tight_layout()
 
-        # for each bout compute the distance between start and endpoint as well as the heading change
+        # for each bout compute the heading change
         bstarts = bouts[:, 0].astype(int)
         bends = bouts[:, 2].astype(int)
-        boutRadius = np.sqrt((x_c[bends] - x_c[bstarts]) ** 2 + (y_c[bends] - y_c[bstarts]) ** 2)
+        boutSpeed = bouts[:, -1]  # peak speed of bouts
         boutTheta = np.abs(core.AssignDeltaAnglesToBouts(bouts, heading)[0])
         boutCategory = np.zeros(bouts.shape[0])
-        for i, (bs, be, r, t) in enumerate(zip(bstarts, bends, boutRadius, boutTheta)):
+        for i, (bs, be, r, t) in enumerate(zip(bstarts, bends, boutSpeed, boutTheta)):
             if not inmiddle[bs]:
                 boutCategory[i] = cdict["exclude"]
             else:
-                if r <= 21.2 and np.abs(t) <= 5:  # slow straight
+                if r <= 149 and np.abs(t) <= 5:  # slow straight
                     boutCategory[i] = cdict["slow straight"]
-                elif r > 21.2 and np.abs(t) <= 5:  # fast (top 25%) straight
+                elif r > 149 and np.abs(t) <= 5:  # fast (top 50%) straight
                     boutCategory[i] = cdict["fast straight"]
-                elif r <= 21.2 and np.abs(t) > 5:  # slow turn
+                elif r <= 149 and np.abs(t) > 5:  # slow turn
                     boutCategory[i] = cdict["slow turn"]
-                elif r > 21.2 and np.abs(t) > 5:  # fast turn
+                elif r > 149 and np.abs(t) > 5:  # fast turn
                     boutCategory[i] = cdict["fast turn"]
                 else:
                     boutCategory[i] = cdict["exclude"]
