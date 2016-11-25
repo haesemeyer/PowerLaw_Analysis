@@ -15,7 +15,7 @@ from scipy import interpolate
 from scipy.stats import linregress
 import matplotlib.pyplot as pl
 import seaborn as sns
-
+import matplotlib.cm as cm
 
 def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')], diagTitle="Load files"):
     """
@@ -420,4 +420,7 @@ class LogLogFit:
         cmap = sns.diverging_palette(240, 10, s=75, l=40, center="dark", as_cmap=True)
         ax.scatter(self.logCurvature, self.logAngularSpeed, s=5, alpha=0.3, c=cmap(self.relativeTime))
         ax.plot([xmin, xmax], [y1, y2], c=color, lw=1, ls='--')
+        sm = cm.ScalarMappable(cmap=cmap)
+        sm._A = []
+        pl.colorbar(sm, ax=ax)
         return ax, cmap
