@@ -17,11 +17,11 @@ import matplotlib.pyplot as pl
 import seaborn as sns
 import matplotlib.cm as cm
 
-def UiGetFile(filetypes=[('Matlab file', '.mat'), ('Data file', '.pickle')], diagTitle="Load files"):
+def UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle="Load files", multiple=True):
     """
     Shows a file selection dialog and returns the path to the selected file(s)
     """
-    options = {'filetypes': filetypes, 'multiple': True, 'title': diagTitle}
+    options = {'filetypes': filetypes, 'multiple': multiple, 'title': diagTitle}
     tkinter.Tk().withdraw()  # Close the root window
     return filedialog.askopenfilename(**options)
 
