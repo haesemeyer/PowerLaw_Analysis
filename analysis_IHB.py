@@ -17,7 +17,7 @@ from scipy.stats import linregress
 
 ihb_datarate = 700  # acquisition and datarate in Hz
 ihb_pixelscale = 1 / 24.8  # pixelsize in mm
-# start data 20 ms earlier than actual start since turn often happens
+# start data 30 ms earlier than actual start since turn often happens
 # before the instant speed bout call assigns the start
 preStartms = 30
 
