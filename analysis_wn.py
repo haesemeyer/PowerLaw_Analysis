@@ -32,7 +32,7 @@ if __name__ == '__main__':
     while sv != 'y' and sv != 'n':
         sv = input('Save figures? [y/n]')
     sv = sv == 'y'
-    fname = core.UiGetFile(diagTitle='Load data files')
+    fname = core.UiGetFile(diagTitle='Load data files', multiple=False)
     dfile = h5py.File(fname[0], 'r')
 
     all_fits = []  # list of log/log fits for each experiment
