@@ -226,3 +226,91 @@ if __name__ == '__main__':
         fig.tight_layout()
         if sv:
             fig.savefig('slope_rsquared_overview.png', type='png')
+
+    # for each of our categories, plot the average development of angular speed and curvature
+    bc_ss = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'slow straight'])
+    ba_ss = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'slow straight'])
+    bc_fs = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'fast straight'])
+    ba_fs = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'fast straight'])
+    bc_st = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'slow turn'])
+    ba_st = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'slow turn'])
+    bc_ft = np.vstack([np.log10(bc[0]) for bc in bout_curves if cat_decode[bc[1]] == 'fast turn'])
+    ba_ft = np.vstack([np.log10(ac[0]) for ac in bout_aspeeds if cat_decode[ac[1]] == 'fast turn'])
+    plotTime = (np.arange(bc_ss.shape[1])-int(preStartms / 1000 * mh_datarate)) / mh_datarate * 1000
+    with sns.axes_style('whitegrid'):
+        fig, (ax_c, ax_a) = pl.subplots(nrows=2, sharex=True)
+        sns.tsplot(data=bc_ss, time=plotTime, estimator=np.nanmean, ci=95, color='b', ax=ax_c)
+        sns.tsplot(data=bc_fs, time=plotTime, estimator=np.nanmean, ci=95, color='g', ax=ax_c)
+        sns.tsplot(data=bc_st, time=plotTime, estimator=np.nanmean, ci=95, color='m', ax=ax_c)
+        sns.tsplot(data=bc_ft, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_c)
+        ax_c.set_ylabel('log10(Curvature)')
+        sns.tsplot(data=ba_ss, time=plotTime, estimator=np.nanmean, ci=95, color='b', ax=ax_a)
+        sns.tsplot(data=ba_fs, time=plotTime, estimator=np.nanmean, ci=95, color='g', ax=ax_a)
+        sns.tsplot(data=ba_st, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_a)
+        sns.tsplot(data=ba_ft, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_a)
+        ax_a.set_ylabel('log10(Angular speed)')
+        ax_a.set_xlabel('Time [ms]')
+        fig.tight_layout()
+        if sv:
+            fig.savefig('Speed_Curve_Bout_development.png', type='png')
+
+    # analyze beta and k according to relative bout time
+    rt_edges = np.linspace(0, 1, 5)
+    rt_centers = rt_edges[:-1] + np.diff(rt_edges)/2
+    ss_timed_beta = np.zeros((slopes.shape[0], rt_centers.size))
+    ss_timed_k = np.zeros_like(ss_timed_beta)
+    fs_timed_beta = np.zeros_like(ss_timed_beta)
+    fs_timed_k = np.zeros_like(ss_timed_beta)
+    st_timed_beta = np.zeros_like(ss_timed_beta)
+    st_timed_k = np.zeros_like(ss_timed_beta)
+    ft_timed_beta = np.zeros_like(ss_timed_beta)
+    ft_timed_k = np.zeros_like(ss_timed_beta)
+    ss_count = fs_count = st_count = ft_count = 0
+    for ft in all_fits:
+        if ft.category == cdict["slow straight"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                ss_timed_beta[ss_count, j] = beta
+                ss_timed_k[ss_count, j] = k
+            ss_count += 1
+        elif ft.category == cdict["fast straight"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                fs_timed_beta[fs_count, j] = beta
+                fs_timed_k[fs_count, j] = k
+            fs_count += 1
+        elif ft.category == cdict["slow turn"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                st_timed_beta[st_count, j] = beta
+                st_timed_k[st_count, j] = k
+            st_count += 1
+        elif ft.category == cdict["fast turn"]:
+            for j in range(rt_centers.size):
+                take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j+1])
+                beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                ft_timed_beta[ft_count, j] = beta
+                ft_timed_k[ft_count, j] = k
+            ft_count += 1
+
+    with sns.axes_style('whitegrid'):
+        fig, (ax_b, ax_k) = pl.subplots(nrows=2, sharex=True)
+        sns.tsplot(data=ss_timed_beta, time=rt_centers, color='b', ax=ax_b, interpolate=False, ci=95)
+        sns.tsplot(data=fs_timed_beta, time=rt_centers, color='g', ax=ax_b, interpolate=False, ci=95)
+        sns.tsplot(data=st_timed_beta, time=rt_centers, color='m', ax=ax_b, interpolate=False, ci=95)
+        sns.tsplot(data=ft_timed_beta, time=rt_centers, color='r', ax=ax_b, interpolate=False, ci=95)
+        ax_b.plot([0.5, 0.5], ax_b.get_ylim(), 'k--')
+        ax_b.set_ylabel('Slope $\\beta$')
+        sns.tsplot(data=ss_timed_k, time=rt_centers, color='b', ax=ax_k, interpolate=False, ci=95)
+        sns.tsplot(data=fs_timed_k, time=rt_centers, color='g', ax=ax_k, interpolate=False, ci=95)
+        sns.tsplot(data=st_timed_k, time=rt_centers, color='m', ax=ax_k, interpolate=False, ci=95)
+        sns.tsplot(data=ft_timed_k, time=rt_centers, color='r', ax=ax_k, interpolate=False, ci=95)
+        ax_k.plot([0.5, 0.5], ax_k.get_ylim(), 'k--')
+        ax_k.set_ylabel('Intercept $k$')
+        ax_k.set_xlabel('Relative bout time [AU]')
+        fig.tight_layout()
+        if sv:
+            fig.savefig('Beta_K_development.png', type='png')
