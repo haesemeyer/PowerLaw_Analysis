@@ -246,7 +246,7 @@ if __name__ == '__main__':
         ax_c.set_ylabel('log10(Curvature)')
         sns.tsplot(data=ba_ss, time=plotTime, estimator=np.nanmean, ci=95, color='b', ax=ax_a)
         sns.tsplot(data=ba_fs, time=plotTime, estimator=np.nanmean, ci=95, color='g', ax=ax_a)
-        sns.tsplot(data=ba_st, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_a)
+        sns.tsplot(data=ba_st, time=plotTime, estimator=np.nanmean, ci=95, color='m', ax=ax_a)
         sns.tsplot(data=ba_ft, time=plotTime, estimator=np.nanmean, ci=95, color='r', ax=ax_a)
         ax_a.set_ylabel('log10(Angular speed)')
         ax_a.set_xlabel('Time [ms]')
