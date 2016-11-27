@@ -16,6 +16,7 @@ from scipy.stats import linregress
 import matplotlib.pyplot as pl
 import seaborn as sns
 import matplotlib.cm as cm
+import h5py
 
 def UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle="Load files", multiple=True):
     """
@@ -376,6 +377,78 @@ def cut_and_pad(trace, size):
         retval = np.full(size, np.nan)
         retval[:trace.size] = trace
         return retval
+
+
+class Experiment:
+    """
+    Describes one generic power law experiment
+    """
+    def __init__(self, key, filename, datarate, pixelsize):
+        """
+        Creates a new Experiment
+        :param key: The data key in the hdf5 file
+        :param filename: The name of the hdf5 file containing the experiment
+        """
+        self.key = key
+        self.filename = filename
+        self.fits = []
+        self.datarate = datarate
+        self.pixelsize = pixelsize
+        self.bout_curves = []
+        self.bout_aspeeds = []
+        # determine filter window size (based on empirical tests)
+        if self.datarate == 250:
+            self.filter_window = 11
+        elif self.datarate == 700:
+            self.filter_window = 21
+        else:
+            self.filter_window = min(int(11/250*self.datarate),21)
+
+    def load_data(self):
+        dfile = h5py.File(self.filename, 'r')
+        exp_data = np.array(dfile[self.key])
+        dfile.close()
+        return self._extract_data(exp_data)
+
+    def _extract_data(self, data):
+        """
+        Subclass specific procedure to extract data
+        for given experiment type
+        :param data: The raw data array of the Experiment
+        :return: x, y, heading, (exp_specific)
+        """
+        return None, None, None
+    
+    def plot_birdnest(self, plotSplinefit=False, start=0, end=None):
+        """
+        Makes birdnest plot of experiment trajectory
+        :param plotSplinefit: Whether to overlay spline fit onto plot (slow)
+        :param start: First frame to include in plot
+        :param end: Last frame to include (or None for end)
+        :return: figure, axes
+        """
+        # we don't save trajectory data so reload
+        if start < 0 or end < 0:
+            raise ValueError("Start and end have to be >= 0")
+        xc, yc = self.load_data()[:2]
+        if start >= xc.size:
+            raise ValueError("Start is beyond experiment length")
+        if end is None:
+            end = xc.size
+        if end > xc.size:
+            raise ValueError("End is beyond experiment length")
+        xf, yf = SmoothenTrack(xc, yc, self.filter_window)
+        if plotSplinefit:
+            tck, u = spline_fit(xf, yf)
+            xs, ys = compute_fitCoords(tck, u)
+        with sns.axes_style("white"):
+            fig, ax = pl.subplots()
+            ax.plot(xf[start:end]*self.pixelsize, yf[start:end]*self.pixelsize)
+            if plotSplinefit:
+                ax.plot(xs[start:end]*self.pixelsize, ys[start:end]*self.pixelsize)
+            ax.set_xlabel("Position [mm]")
+            ax.set_ylabel("Position [mm]")
+        return fig, ax
 
 
 class LogLogFit:
