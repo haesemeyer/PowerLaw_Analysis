@@ -423,6 +423,16 @@ class Experiment:
         :return: x, y, heading, (exp_specific)
         """
         return None, None, None
+
+    def _detect_bouts(self, instantSpeed):
+        """
+        Bout detection. Subclasses should override to tune parameters
+        :param instantSpeed: The instant speed trace
+        :return: Bouts matrix
+        """
+        generic_minframes = 70 / 1000 * self.datarate  # min 70ms per bout
+        generic_spdThreshold = 0.05 * self.datarate
+        return DetectBouts(instantSpeed, generic_minframes, self.datarate, speedThresholdAbsolute=generic_spdThreshold)
     
     def plot_birdnest(self, plotSplinefit=False, start=0, end=None):
         """
