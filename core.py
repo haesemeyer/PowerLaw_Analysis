@@ -404,6 +404,9 @@ class Experiment:
             self.filter_window = 21
         else:
             self.filter_window = min(int(11/250*self.datarate), 21)
+        # bout category dictionaries - these defaults will likely be overridden by derived classes
+        self.cdict = {"exclude": -1, "take": 0}
+        self.cat_decode = {v: k for k, v in self.cdict.items()}  # inverse dictionary to later get our names back easily
 
     def load_data(self):
         """
