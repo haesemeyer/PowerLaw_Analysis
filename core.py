@@ -411,14 +411,18 @@ class Experiment:
         self.cdict = {"exclude": -1, "take": 0}
         self.cat_decode = {v: k for k, v in self.cdict.items()}  # inverse dictionary to later get our names back easily
 
-    def load_data(self):
+    def load_data(self, file=None):
         """
         Load data from file and process according to experiment type
+        :param file: If provided is assumed to be a dictionary of data objects such as an hdf5 file
         :return: The extracted experiment data
         """
-        dfile = h5py.File(self.filename, 'r')
-        exp_data = np.array(dfile[self.key])
-        dfile.close()
+        if file is None:
+            dfile = h5py.File(self.filename, 'r')
+            exp_data = np.array(dfile[self.key])
+            dfile.close()
+        else:
+            exp_data = np.array(file[self.key])
         return self._extract_data(exp_data)
 
     def _extract_data(self, data):
