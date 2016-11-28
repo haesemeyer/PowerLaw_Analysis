@@ -397,6 +397,7 @@ class Experiment:
         self.pixelsize = pixelsize
         self.bout_curves = []
         self.bout_aspeeds = []
+        self.bout_tang_vels = []
         self.bouts = []
         self.bout_categories = []
         # determine filter window size (based on empirical tests)
@@ -438,6 +439,70 @@ class Experiment:
         generic_minframes = 70 / 1000 * self.datarate  # min 70ms per bout
         generic_spdThreshold = 0.05 * self.datarate
         return DetectBouts(instantSpeed, generic_minframes, self.datarate, speedThresholdAbsolute=generic_spdThreshold)
+
+    def _compute_fits(self, overhang, pre_start_ms, x_f, y_f):
+        """
+        Compute curvature and angular speed and tangential velocity for each bout and create log-log-fits
+        :param overhang: Number of frames to include around bout in spline fit to avoid edge effects
+        :param pre_start_ms: Number of ms before bout start call to include in data
+        :param x_f: The filtered x-coordinates across the experiment
+        :param y_f: The filtered y-coordinates across the experiment
+        """
+        self.bout_curves = []
+        self.bout_aspeeds = []
+        self.bout_tang_vels = []
+        self.fits = []
+        ang_speeds = np.array([])
+        curvatures = np.array([])
+        categories = np.array([])
+        relTimes = np.array([])  # relative time within bout: 0-0.5 is before peak speed, 0.5-1 after till end of bout
+        for b, categ in zip(self.bouts, self.bout_categories):
+            if b[1] < b[0] or b[1] == b[0]:
+                # skip odd bout calls
+                continue
+            # compute starts and ends of our stretch and only use if fully within dataset
+            s = int(b[0] - overhang)
+            if s < 0:
+                continue
+            e = int(b[2] + overhang)
+            if e >= x_f.size:
+                continue
+            xb = x_f[s:e]
+            yb = y_f[s:e]
+            tck, u = spline_fit(xb * self.pixelsize, yb * self.pixelsize)
+            a_spd = compute_angSpeed(tck, u, self.datarate)
+            curve = compute_curvature(tck, u)
+            tangv = compute_tangVelocity(tck, u, self.datarate)
+            # strip fit-overhang frames
+            start = overhang - int(pre_start_ms / 1000 * self.datarate)
+            end = -1 * (overhang - 1)
+            peak_frame = int(b[1] - b[0]) + int(pre_start_ms / 1000 * self.datarate)
+            a_spd = a_spd[start:end]
+            curve = curve[start:end]
+            tangv = tangv[start:end]
+            ct = np.full_like(curve, categ)
+            # create our relative time vector
+            rel_time = np.r_[np.linspace(0, 0.5, peak_frame, False), np.linspace(0.5, 1, curve.size - peak_frame)]
+            ang_speeds = np.r_[ang_speeds, a_spd]
+            curvatures = np.r_[curvatures, curve]
+            categories = np.r_[categories, ct]
+            relTimes = np.r_[relTimes, rel_time]
+            self.bout_curves.append((cut_and_pad(curve, int(130 / 1000 * self.datarate)), categ))
+            self.bout_aspeeds.append((cut_and_pad(a_spd, int(130 / 1000 * self.datarate)), categ))
+            self.bout_tang_vels.append((cut_and_pad(tangv, int(130 / 1000 * self.datarate)), categ))
+        # remove nan-values
+        nan_vals = np.logical_or(np.isnan(ang_speeds), np.isnan(curvatures))
+        ang_speeds = ang_speeds[np.logical_not(nan_vals)]
+        curvatures = curvatures[np.logical_not(nan_vals)]
+        categories = categories[np.logical_not(nan_vals)]
+        relTimes = relTimes[np.logical_not(nan_vals)]
+        # compute linear fits and add to lists
+        for categ in self.cat_decode.keys():
+            if categ == -1:
+                # don't add fit for bouts in exclude category
+                continue
+            ft = LogLogFit(curvatures, ang_speeds, relTimes, categories == categ, categ, self.filename+'/'+self.key)
+            self.fits.append(ft)
 
     def plot_birdnest(self, plotSplinefit=False, start=0, end=None):
         """
