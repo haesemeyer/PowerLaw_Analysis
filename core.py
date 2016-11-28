@@ -397,6 +397,8 @@ class Experiment:
         self.pixelsize = pixelsize
         self.bout_curves = []
         self.bout_aspeeds = []
+        self.bouts = []
+        self.bout_categories = []
         # determine filter window size (based on empirical tests)
         if self.datarate == 250:
             self.filter_window = 11
@@ -436,7 +438,7 @@ class Experiment:
         generic_minframes = 70 / 1000 * self.datarate  # min 70ms per bout
         generic_spdThreshold = 0.05 * self.datarate
         return DetectBouts(instantSpeed, generic_minframes, self.datarate, speedThresholdAbsolute=generic_spdThreshold)
-    
+
     def plot_birdnest(self, plotSplinefit=False, start=0, end=None):
         """
         Makes birdnest plot of experiment trajectory
@@ -523,7 +525,7 @@ class Experiment:
         with sns.axes_style('whitegrid'):
             cols = sns.color_palette("deep", len(self.fits))
             fig, axes = pl.subplots(ncols=len(self.fits), sharey=True, sharex=True)
-            for i, f in enumerate(self.fits):
+            for i, f in enumerate(sorted(self.fits, key=lambda x: x.category)):
                 f.PlotFit(axes[i], color=cols[i])
                 if i == 0:
                     axes[i].set_ylabel('log10(Angular speed)')
