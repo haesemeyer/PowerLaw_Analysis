@@ -515,6 +515,24 @@ class Experiment:
             fig.tight_layout()
         return fig, (ax_x, ax_y, ax_s)
 
+    def plot_fits(self):
+        """
+        Plots scatter plot and fit line for each fit
+        :return: figure and axes array
+        """
+        with sns.axes_style('whitegrid'):
+            cols = sns.color_palette("deep", len(self.fits))
+            fig, axes = pl.subplots(ncols=len(self.fits), sharey=True, sharex=True)
+            for i, f in enumerate(self.fits):
+                f.PlotFit(axes[i], color=cols[i])
+                if i == 0:
+                    axes[i].set_ylabel('log10(Angular speed)')
+                axes[i].set_xlabel('log10(Curvature)')
+                axes[i].set_title(self.cat_decode[f.category])
+                sns.despine(ax=axes[i])
+            fig.tight_layout()
+        return fig, axes
+
 
 class LogLogFit:
     """
