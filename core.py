@@ -517,7 +517,7 @@ class Experiment:
         :return: figure, axes
         """
         # we don't save trajectory data so reload
-        if start < 0 or end < 0:
+        if start < 0 or (end is not None and end < 0):
             raise ValueError("Start and end have to be >= 0")
         xc, yc = self.load_data()[:2]
         if start >= xc.size:
@@ -547,7 +547,7 @@ class Experiment:
         :return: figure, axes tuple
         """
         # we don't save trajectory data so reload
-        if start < 0 or end < 0:
+        if start < 0 or (end is not None and end < 0):
             raise ValueError("Start and end have to be >= 0")
         xc, yc = self.load_data()[:2]
         if start >= xc.size:
@@ -686,6 +686,18 @@ class AFAP_Experiment(Experiment):
             ax.set_xlabel('Bout displacement [mm]')
             ax.set_ylabel('Bout delta-angle [degrees]')
         return fig, ax
+
+    @staticmethod
+    def load_experiments():
+        """
+        Presents dialog to user to load data files and extract data
+        :return: List of AFAP experiments
+        """
+        fnames = UiGetFile(diagTitle="Load AFAP files")
+        exps = []
+        for f in fnames:
+            exps.append(AFAP_Experiment("martindata", f))
+        return exps
 
 
 class LogLogFit:
