@@ -465,6 +465,55 @@ class Experiment:
             ax.set_ylabel("Position [mm]")
         return fig, ax
 
+    def plot_boutCalls(self, start=0, end=None):
+        """
+        Quality control plot of bout calling algorithm and trajectory smoothing
+        :param start: First frame to include in plot
+        :param end: Last frame to include (or None for end)
+        :return: figure, axes tuple
+        """
+        # we don't save trajectory data so reload
+        if start < 0 or end < 0:
+            raise ValueError("Start and end have to be >= 0")
+        xc, yc = self.load_data()[:2]
+        if start >= xc.size:
+            raise ValueError("Start is beyond experiment length")
+        if end is None:
+            end = xc.size
+        if end > xc.size:
+            raise ValueError("End is beyond experiment length")
+        frameTime = np.arange(xc.size) / self.datarate
+        xf, yf = SmoothenTrack(xc.copy(), yc.copy(), self.filter_window)
+        ispd = ComputeInstantSpeed(xf, yf, self.datarate)
+        bouts = self._detect_bouts(ispd)
+        select = slice(start, end)
+        with sns.axes_style("white"):
+            fig, (ax_x, ax_y, ax_s) = pl.subplots(nrows=3)
+            ax_x.plot(frameTime[select], xc[select] * self.pixelsize, label='Raw')
+            ax_x.plot(frameTime[select], xf[select] * self.pixelsize, label='Filtered')
+            ax_x.set_ylabel('X position [mm]')
+            ax_x.set_xlabel('Time [s]')
+            ax_x.legend()
+            ax_x.set_title(self.filename + '/' + self.key)
+            ax_y.plot(frameTime[select], yc[select] * self.pixelsize, label='Raw')
+            ax_y.plot(frameTime[select], yf[select] * self.pixelsize, label='Filtered')
+            ax_y.set_ylabel('Y position [mm]')
+            ax_y.set_xlabel('Time [s]')
+            ax_y.legend()
+            ax_s.plot(frameTime[select], ispd[select] * self.pixelsize)
+            bs = bouts[:, 0].astype(int)
+            bs = bs[bs >= select.start]
+            bs = bs[bs < select.stop]
+            be = bouts[:, 2].astype(int)
+            be = be[be >= select.start]
+            be = be[be < select.stop]
+            ax_s.plot(frameTime[bs], ispd[bs] * self.pixelsize, 'r*')
+            ax_s.plot(frameTime[be], ispd[be] * self.pixelsize, 'k*')
+            ax_s.set_ylabel('Instant speed [mm/s]')
+            ax_s.set_xlabel('Time [s]')
+            fig.tight_layout()
+        return fig, (ax_x, ax_y, ax_s)
+
 
 class LogLogFit:
     """
