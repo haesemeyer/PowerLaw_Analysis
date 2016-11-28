@@ -601,6 +601,89 @@ class Experiment:
         return fig, axes
 
 
+class AFAP_Experiment(Experiment):
+    """
+    Describes an IHB Afap experiment
+    """
+
+    def __init__(self, key, filename):
+        super().__init__(key, filename, 700, 1/24.8)
+        # override default dictionaries
+        self.cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
+        self.cat_decode = {v: k for k, v in self.cdict.items()}
+        # load data from file and process
+        x_c, y_c, heading, inmiddle, looming, escape, hunting = self.load_data()
+        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), 21)
+        ispeed = ComputeInstantSpeed(x_f, y_f, self.datarate)
+        # detect and store bouts
+        self.bouts = self._detect_bouts(ispeed)
+        # for each bout compute the distance between start and endpoint as well as the heading change
+        bstarts = self.bouts[:, 0].astype(int)
+        bends = self.bouts[:, 2].astype(int)
+        self.bout_displacements = self.bouts[:, -2]
+        self.bout_thetas = np.abs(AssignDeltaAnglesToBouts(self.bouts, heading)[0])
+        escape_frames = np.nonzero(escape)[0]
+        self.bout_categories = np.zeros(self.bouts.shape[0], dtype=np.int32)
+        for i, (bs, be) in enumerate(zip(bstarts, bends)):
+            if not inmiddle[bs]:
+                self.bout_categories[i] = self.cdict["exclude"]
+            else:
+                # NOTE: Escapes are identified by a single 1 but this does not align with our bout calls
+                if np.min(np.abs(bs - escape_frames)) <= 25:
+                    self.bout_categories[i] = self.cdict["escape"]
+                elif hunting[bs:be].sum() > 0:
+                    self.bout_categories[i] = self.cdict["hunting"]
+                else:
+                    self.bout_categories[i] = self.cdict["regular"]
+        self._compute_fits(300, 30, x_f, y_f)
+
+    def _detect_bouts(self, instantSpeed):
+        """
+        Bout detection.
+        :param instantSpeed: The instant speed trace
+        :return: Bouts matrix
+        """
+        return DetectBouts(instantSpeed, 50, self.datarate, speedThresholdAbsolute=35, maxFramesAtPeak=10)
+
+    def _extract_data(self, data):
+        """
+        Extracts the raw data of AFAP experiments
+        :param data: The raw data array of the Experiment
+        :return: x, y, heading, inmiddle, looming, escape, hunting
+        """
+        x = data[1, :]
+        y = data[2, :]
+        inmiddle = data[3, :].astype(bool)
+        heading = data[4, :]
+        looming = data[5, :].astype(bool)
+        escape = data[6, :].astype(bool)
+        hunting = data[7, :].astype(bool)
+        return x, y, heading, inmiddle, looming, escape, hunting
+
+    def plot_boutScatter(self):
+        """
+        Plots a scatter plot of total bout turn angle versus total bout displacement for
+        the different categories
+        :return: figure and axis
+        """
+        with sns.axes_style('whitegrid'):
+            fig, ax = pl.subplots()
+            cols = sns.color_palette("deep", len(self.fits))
+            ax.scatter(self.bout_displacements[self.bout_categories == 0] * self.pixelsize,
+                       self.bout_thetas[self.bout_categories == 0], c=cols[0], s=10, alpha=0.7, label='Regular')
+            ax.scatter(self.bout_displacements[self.bout_categories == 1] * self.pixelsize,
+                       self.bout_thetas[self.bout_categories == 1], c=cols[1], s=10, alpha=0.7, label='Hunt')
+            ax.scatter(self.bout_displacements[self.bout_categories == 2] * self.pixelsize,
+                       self.bout_thetas[self.bout_categories == 2], c=cols[2], s=10, alpha=0.7, label='Escape')
+            ax.legend()
+            ax.set_xlim(0)
+            ax.set_ylim(0, 180)
+            sns.despine(fig, ax)
+            ax.set_xlabel('Bout displacement [mm]')
+            ax.set_ylabel('Bout delta-angle [degrees]')
+        return fig, ax
+
+
 class LogLogFit:
     """
     Creates a log(curvature) log(angular velocity) fit and stores the retrieved information
