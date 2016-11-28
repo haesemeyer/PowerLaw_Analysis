@@ -18,6 +18,7 @@ import seaborn as sns
 import matplotlib.cm as cm
 import h5py
 
+
 def UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle="Load files", multiple=True):
     """
     Shows a file selection dialog and returns the path to the selected file(s)
@@ -220,7 +221,7 @@ def AssignDeltaAnglesToBouts(bouts, ang):
     # sine respectively. These are added together and the pre- and post angles
     # are computed using atan2. Subsequently the delta angle is computed based
     # on the pre and post angles.
-    m = np.shape(bouts)[0]
+    m = bouts.shape[0]
     dAngles = np.zeros(m)
     preAngle = np.zeros(m)
     postAngle = np.zeros(m)
@@ -308,7 +309,7 @@ def spline_fit(x, y):
     """
     Compute smoothened spline fit
     """
-    return interpolate.splprep([x, y], u=np.arange(x.size), s=0.003)
+    return interpolate.splprep([x, y], u=np.arange(x.size), s=0.003)[:2]
 
 
 def compute_fitCoords(tck, u):
@@ -402,9 +403,13 @@ class Experiment:
         elif self.datarate == 700:
             self.filter_window = 21
         else:
-            self.filter_window = min(int(11/250*self.datarate),21)
+            self.filter_window = min(int(11/250*self.datarate), 21)
 
     def load_data(self):
+        """
+        Load data from file and process according to experiment type
+        :return: The extracted experiment data
+        """
         dfile = h5py.File(self.filename, 'r')
         exp_data = np.array(dfile[self.key])
         dfile.close()
