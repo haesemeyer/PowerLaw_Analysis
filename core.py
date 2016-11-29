@@ -566,7 +566,6 @@ class Experiment:
         frameTime = np.arange(xc.size) / self.datarate
         xf, yf = SmoothenTrack(xc.copy(), yc.copy(), self.filter_window)
         ispd = ComputeInstantSpeed(xf, yf, self.datarate)
-        bouts = self._detect_bouts(ispd)
         select = slice(start, end)
         with sns.axes_style("white"):
             fig, (ax_x, ax_y, ax_s) = pl.subplots(nrows=3, sharex=True)
@@ -582,10 +581,10 @@ class Experiment:
             ax_y.legend()
             sns.despine(ax=ax_y)
             ax_s.plot(frameTime[select], ispd[select] * self.pixelsize)
-            bs = bouts[:, 0].astype(int)
+            bs = self.bouts[:, 0].astype(int)
             bs = bs[bs >= select.start]
             bs = bs[bs < select.stop]
-            be = bouts[:, 2].astype(int)
+            be = self.bouts[:, 2].astype(int)
             be = be[be >= select.start]
             be = be[be < select.stop]
             ax_s.plot(frameTime[bs], ispd[bs] * self.pixelsize, 'r*')
