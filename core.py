@@ -18,6 +18,7 @@ import seaborn as sns
 import matplotlib.cm as cm
 import h5py
 import pandas
+import os
 
 
 def UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle="Load files", multiple=True):
@@ -401,6 +402,8 @@ class Experiment:
         self.bout_tang_vels = []
         self.bouts = []
         self.bout_categories = []
+        # counter that gets appended to id string to form figure name to ensure each figure is unique
+        self.fig_num = 0
         # determine filter window size (based on empirical tests)
         if self.datarate == 250:
             self.filter_window = 10
@@ -538,7 +541,7 @@ class Experiment:
         yf = yf[start:end]
         valid = in_middle[start:end] > 0
         with sns.axes_style("white"):
-            fig, ax = pl.subplots()
+            fig, ax = pl.subplots(num=self.ID)
             ax.plot(xf[valid]*self.pixelsize, yf[valid]*self.pixelsize)
             ax.plot(xf[np.logical_not(valid)]*self.pixelsize, yf[np.logical_not(valid)]*self.pixelsize, 'r')
             if plotSplinefit:
@@ -570,7 +573,7 @@ class Experiment:
         ispd = ComputeInstantSpeed(xf, yf, self.datarate)
         select = slice(start, end)
         with sns.axes_style("white"):
-            fig, (ax_x, ax_y, ax_s) = pl.subplots(nrows=3, sharex=True)
+            fig, (ax_x, ax_y, ax_s) = pl.subplots(nrows=3, sharex=True, num=self.ID)
             ax_x.plot(frameTime[select], xc[select] * self.pixelsize, label='Raw')
             ax_x.plot(frameTime[select], xf[select] * self.pixelsize, label='Filtered')
             ax_x.set_ylabel('X position [mm]')
@@ -604,7 +607,7 @@ class Experiment:
         """
         with sns.axes_style('whitegrid'):
             cols = sns.color_palette("deep", len(self.fits))
-            fig, axes = pl.subplots(ncols=len(self.fits), sharey=True, sharex=True)
+            fig, axes = pl.subplots(ncols=len(self.fits), sharey=True, sharex=True, num=self.ID)
             for i, f in enumerate(sorted(self.fits, key=lambda x: x.category)):
                 f.PlotFit(axes[i], color=cols[i])
                 if i == 0:
@@ -622,6 +625,13 @@ class Experiment:
         :return: None
         """
         return None
+
+    @property
+    def ID(self):
+        basename = os.path.basename(self.filename)
+        name = basename + '/' + self.key + '_' + str(self.fig_num)
+        self.fig_num += 1
+        return name
 
     @staticmethod
     def load_experiments():
@@ -699,7 +709,7 @@ class AFAP_Experiment(Experiment):
         :return: figure and axis
         """
         with sns.axes_style('whitegrid'):
-            fig, ax = pl.subplots()
+            fig, ax = pl.subplots(num=self.ID)
             cols = sns.color_palette("deep", len(self.cdict) - 1)
             for k in sorted(self.cat_decode.keys()):
                 if k == -1:
@@ -800,7 +810,7 @@ class WN_Experiment(Experiment):
         :return: figure and axis
         """
         with sns.axes_style('whitegrid'):
-            fig, ax = pl.subplots()
+            fig, ax = pl.subplots(num=self.ID)
             cols = sns.color_palette("deep", len(self.cdict) - 1)
             for k in sorted(self.cat_decode.keys()):
                 if k == -1:
