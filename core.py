@@ -430,9 +430,9 @@ class Experiment:
         Subclass specific procedure to extract data
         for given experiment type
         :param data: The raw data array of the Experiment
-        :return: x, y, heading, (exp_specific)
+        :return: x, y, heading, valid, (exp_specific)
         """
-        return None, None, None
+        return None, None, None, None
 
     def _detect_bouts(self, instantSpeed):
         """
@@ -519,7 +519,7 @@ class Experiment:
         # we don't save trajectory data so reload
         if start < 0 or (end is not None and end < 0):
             raise ValueError("Start and end have to be >= 0")
-        xc, yc = self.load_data()[:2]
+        xc, yc, h, in_middle = self.load_data()[:4]
         if start >= xc.size:
             raise ValueError("Start is beyond experiment length")
         if end is None:
@@ -530,13 +530,20 @@ class Experiment:
         if plotSplinefit:
             tck, u = spline_fit(xf, yf)
             xs, ys = compute_fitCoords(tck, u)
+            xs = xs[start:end]
+            ys = ys[start:end]
+        xf = xf[start:end]
+        yf = yf[start:end]
+        valid = in_middle[start:end] > 0
         with sns.axes_style("white"):
             fig, ax = pl.subplots()
-            ax.plot(xf[start:end]*self.pixelsize, yf[start:end]*self.pixelsize)
+            ax.plot(xf[valid]*self.pixelsize, yf[valid]*self.pixelsize)
+            ax.plot(xf[np.logical_not(valid)]*self.pixelsize, yf[np.logical_not(valid)]*self.pixelsize, 'r')
             if plotSplinefit:
-                ax.plot(xs[start:end]*self.pixelsize, ys[start:end]*self.pixelsize)
+                ax.plot(xs[valid]*self.pixelsize, ys[valid]*self.pixelsize, 'g')
             ax.set_xlabel("Position [mm]")
             ax.set_ylabel("Position [mm]")
+            sns.despine(fig, ax)
         return fig, ax
 
     def plot_boutCalls(self, start=0, end=None):
@@ -568,10 +575,12 @@ class Experiment:
             ax_x.set_ylabel('X position [mm]')
             ax_x.legend()
             ax_x.set_title(self.filename + '/' + self.key)
+            sns.despine(ax=ax_x)
             ax_y.plot(frameTime[select], yc[select] * self.pixelsize, label='Raw')
             ax_y.plot(frameTime[select], yf[select] * self.pixelsize, label='Filtered')
             ax_y.set_ylabel('Y position [mm]')
             ax_y.legend()
+            sns.despine(ax=ax_y)
             ax_s.plot(frameTime[select], ispd[select] * self.pixelsize)
             bs = bouts[:, 0].astype(int)
             bs = bs[bs >= select.start]
@@ -583,6 +592,7 @@ class Experiment:
             ax_s.plot(frameTime[be], ispd[be] * self.pixelsize, 'k*')
             ax_s.set_ylabel('Instant speed [mm/s]')
             ax_s.set_xlabel('Time [s]')
+            sns.despine(ax=ax_s)
             fig.tight_layout()
         return fig, (ax_x, ax_y, ax_s)
 
@@ -611,6 +621,11 @@ class AFAP_Experiment(Experiment):
     """
 
     def __init__(self, key, filename):
+        """
+        Creates a new AFAP_Experiment
+        :param key: The key in the hdf5 dictionary at which this experiments data is stored
+        :param filename: The name of the hdf5 file containing this experiment
+        """
         super().__init__(key, filename, 700, 1/24.8)
         # override default dictionaries
         self.cdict = {"exclude": -1, "regular": 0, "hunting": 1, "escape": 2}
@@ -672,13 +687,13 @@ class AFAP_Experiment(Experiment):
         """
         with sns.axes_style('whitegrid'):
             fig, ax = pl.subplots()
-            cols = sns.color_palette("deep", len(self.fits))
-            ax.scatter(self.bout_displacements[self.bout_categories == 0] * self.pixelsize,
-                       self.bout_thetas[self.bout_categories == 0], c=cols[0], s=10, alpha=0.7, label='Regular')
-            ax.scatter(self.bout_displacements[self.bout_categories == 1] * self.pixelsize,
-                       self.bout_thetas[self.bout_categories == 1], c=cols[1], s=10, alpha=0.7, label='Hunt')
-            ax.scatter(self.bout_displacements[self.bout_categories == 2] * self.pixelsize,
-                       self.bout_thetas[self.bout_categories == 2], c=cols[2], s=10, alpha=0.7, label='Escape')
+            cols = sns.color_palette("deep", len(self.cdict) - 1)
+            for k in sorted(self.cat_decode.keys()):
+                if k == -1:
+                    continue
+                ax.scatter(self.bout_displacements[self.bout_categories == k] * self.pixelsize,
+                           self.bout_thetas[self.bout_categories == k], c=cols[k], s=10, alpha=0.7,
+                           label=self.cat_decode[k])
             ax.legend()
             ax.set_xlim(0)
             ax.set_ylim(0, 180)
