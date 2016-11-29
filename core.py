@@ -402,7 +402,7 @@ class Experiment:
         self.bout_categories = []
         # determine filter window size (based on empirical tests)
         if self.datarate == 250:
-            self.filter_window = 11
+            self.filter_window = 10
         elif self.datarate == 700:
             self.filter_window = 21
         else:
@@ -644,7 +644,7 @@ class AFAP_Experiment(Experiment):
         self.cat_decode = {v: k for k, v in self.cdict.items()}
         # load data from file and process
         x_c, y_c, heading, inmiddle, looming, escape, hunting = self.load_data()
-        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), 21)
+        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), self.filter_window)
         ispeed = ComputeInstantSpeed(x_f, y_f, self.datarate)
         # detect and store bouts
         self.bouts = self._detect_bouts(ispeed)
@@ -745,7 +745,7 @@ class WN_Experiment(Experiment):
         self.cat_decode = {v: k for k, v in self.cdict.items()}
         # load data from file and process
         x_c, y_c, heading, inmiddle, phase = self.load_data(fileobj)
-        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), 21)
+        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), self.filter_window)
         ispeed = ComputeInstantSpeed(x_f, y_f, self.datarate)
         # detect and store bouts
         self.bouts = self._detect_bouts(ispeed)
