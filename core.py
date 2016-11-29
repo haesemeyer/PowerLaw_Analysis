@@ -456,6 +456,7 @@ class Experiment:
         self.bout_aspeeds = []
         self.bout_tang_vels = []
         self.fits = []
+        self.pre_start_ms = pre_start_ms
         ang_speeds = np.array([])
         curvatures = np.array([])
         categories = np.array([])
