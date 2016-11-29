@@ -17,6 +17,7 @@ import matplotlib.pyplot as pl
 import seaborn as sns
 import matplotlib.cm as cm
 import h5py
+import pandas
 
 
 def UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle="Load files", multiple=True):
@@ -828,6 +829,136 @@ class WN_Experiment(Experiment):
         for k in keys:
             exps.append(WN_Experiment(k, fname, file_obj))
         return exps
+
+
+class Analyzer:
+    """
+    Class to analyze experiments of a given class
+    """
+    def __init__(self, expClass, savePlots, saveType='png'):
+        """
+        Creates a new Analyzer
+        :param expClass: The experimental class for which experiments should be loaded and analyzed
+        :param savePlots: Whether to save plots or not
+        :param saveType: The filetype of the figure when saving
+        """
+        if not hasattr(expClass, "load_experiments"):
+            raise ValueError("Expected class which has load_experiments static method")
+        self.experiments = expClass.load_experiments()
+        self.cat_decode = self.experiments[0].cat_decode
+        self.fits = []
+        self.bout_curves = []
+        self.bout_aspeeds = []
+        self.bout_tang_vels = []
+        for e in self.experiments:
+            self.fits += e.fits
+            self.bout_curves += e.bout_curves
+            self.bout_aspeeds += e.bout_aspeeds
+            self.bout_tang_vels += e.bout_tang_vels
+        self.save_plots = savePlots
+        self.save_type = saveType
+
+    def _save_figure(self, filename, figure):
+        """
+        Save a figure object to file
+        :param filename: The filename without extension
+        :param figure: The figure object to save
+        :return: None
+        """
+        if self.save_plots:
+            figure.savefig(filename+'.'+self.save_type, type=self.save_type)
+
+    def fit_boxplot(self):
+        """
+        Plots boxplot of fit characteristica across all experiments
+        :return: figure, axes
+        """
+        slopes = pandas.DataFrame({self.cat_decode[k]: [ft.slope for ft in self.fits if ft.category == k]
+                                   for k in self.cat_decode if k != -1})
+        intercepts = pandas.DataFrame({self.cat_decode[k]: [ft.intercept for ft in self.fits if ft.category == k]
+                                       for k in self.cat_decode if k != -1})
+        r_sq = pandas.DataFrame({self.cat_decode[k]: [ft.rsquared for ft in self.fits if ft.category == k]
+                                 for k in self.cat_decode if k != -1})
+        plot_order = [self.cat_decode[k] for k in self.cat_decode if k != -1]
+        with sns.axes_style('whitegrid'):
+            fig, (ax_s, ax_k, ax_r) = pl.subplots(ncols=3)
+            sns.boxplot(data=slopes, ax=ax_s, whis=np.inf, palette='muted', order=plot_order)
+            sns.swarmplot(data=slopes, ax=ax_s, color='k', size=4, order=plot_order)
+            ax_s.set_ylabel('Slope $\\beta$')
+            ax_s.set_ylim(0.5, 1)
+            sns.boxplot(data=intercepts, ax=ax_k, whis=np.inf, palette='muted', order=plot_order)
+            sns.swarmplot(data=intercepts, ax=ax_k, color='k', size=4, order=plot_order)
+            ax_k.set_ylabel('Intercept $k$')
+            sns.boxplot(data=r_sq, ax=ax_r, whis=np.inf, palette='muted', order=plot_order)
+            sns.swarmplot(data=r_sq, ax=ax_r, color='k', size=4, order=plot_order)
+            ax_r.set_ylabel('$R^2$')
+            ax_r.set_ylim(0, 1)
+            fig.tight_layout()
+            self._save_figure("slope_k_rsquared_overview", fig)
+        return fig, (ax_s, ax_k, ax_r)
+
+    def plot_plCHaracteristics(self):
+        """
+        Plots the development of curvature angular speed and tangential velocity centered on bout starts
+        :return: figure, axes
+        """
+        with sns.axes_style('whitegrid'):
+            fig, (ax_c, ax_a, ax_v) = pl.subplots(nrows=3, sharex=True)
+            cols = sns.color_palette("deep", len(self.cat_decode) - 1)
+            pre_start = self.experiments[0].pre_start_ms
+            for k in self.cat_decode:
+                if k == -1:
+                    continue
+                bc = np.vstack([np.log10(bc[0]) for bc in self.bout_curves if bc[1] == k and np.sum(bc[0] == 0) == 0])
+                ba = np.vstack([np.log10(ba[0]) for ba in self.bout_aspeeds if ba[1] == k and np.sum(ba[0] == 0) == 0])
+                bv = np.vstack([np.log10(bv[0]) for bv in self.bout_tang_vels if bv[1] == k and np.sum(bv[0] == 0) == 0])
+                plotTime = np.arange(bc.shape[1]) / self.experiments[0].datarate * 1000 - pre_start
+                sns.tsplot(data=bc, time=plotTime, estimator=np.nanmean, ci=95, color=cols[k], ax=ax_c, n_boot=500)
+                sns.tsplot(data=ba, time=plotTime, estimator=np.nanmean, ci=95, color=cols[k], ax=ax_a, n_boot=500)
+                sns.tsplot(data=bv, time=plotTime, estimator=np.nanmean, ci=95, color=cols[k], ax=ax_v, n_boot=500)
+            ax_c.set_ylabel('lg10(Curvature [rad/mm])')
+            ax_a.set_ylabel('lg10(Angular speed [rad/s])')
+            ax_v.set_ylabel('lg10(Tangential velocity [mm/s])')
+            ax_v.set_xlabel('Time [ms]')
+            fig.tight_layout()
+            self._save_figure("Speed_Curve_Bout_development", fig)
+        return fig, (ax_c, ax_a, ax_v)
+
+    def plot_fitDevelopment(self):
+        """
+        Plots the development of the slope and intercept across relative bout time
+        :return: figure, axes
+        """
+        rt_edges = np.linspace(0, 1, 5)
+        rt_centers = rt_edges[:-1] + np.diff(rt_edges) / 2
+        cols = sns.color_palette("deep", len(self.cat_decode) - 1)
+        with sns.axes_style("whitegrid"):
+            fig, (ax_b, ax_k) = pl.subplots(2, sharex=True)
+            for key in self.cat_decode:
+                if key == -1:
+                    continue
+                timed_beta = np.zeros((len(self.experiments), rt_centers.size))
+                timed_k = np.zeros_like(timed_beta)
+                count = 0
+                for ft in self.fits:
+                    if ft.category == key:
+                        for j in range(rt_centers.size):
+                            take = np.logical_and(ft.relativeTime >= rt_edges[j], ft.relativeTime < rt_edges[j + 1])
+                            beta, k = linregress(ft.logCurvature[take], ft.logAngularSpeed[take])[:2]
+                            timed_beta[count, j] = beta
+                            timed_k[count, j] = k
+                        count += 1
+                sns.tsplot(data=timed_beta, time=rt_centers, color=cols[key], ax=ax_b, interpolate=False, ci=95)
+                sns.tsplot(data=timed_k, time=rt_centers, color=cols[key], ax=ax_k, interpolate=False, ci=95)
+            ax_b.plot([0.5, 0.5], ax_b.get_ylim(), "k--")
+            ax_b.set_ylabel("Slope $\\beta$")
+            ax_k.plot([0.5, 0.5], ax_k.get_ylim(), "k--")
+            ax_k.set_ylabel("Intercept $k$")
+            ax_k.set_xlabel("Relative bout time [AU]")
+            ax_k.set_xlim(0, 1)
+            fig.tight_layout()
+            self._save_figure("Beta_K_development", fig)
+        return fig, (ax_b, ax_k)
 
 
 class LogLogFit:
