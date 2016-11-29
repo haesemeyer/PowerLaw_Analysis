@@ -714,6 +714,109 @@ class AFAP_Experiment(Experiment):
         return exps
 
 
+class WN_Experiment(Experiment):
+    """
+    Describes an MH white noise experiment
+    """
+
+    def __init__(self, key, filename, fileobj=None):
+        """
+        Creates a new WN_Experiment
+        :param key: The key in the hdf5 dictionary at which this experiments data is stored
+        :param filename: The name of the file containing this experiment
+        :param fileobj: Optionally a dictionary object with (multiple) experiment data (filename will be ignored)
+        """
+        super().__init__(key, filename, 250, 1/9)
+        # override default dictionaries
+        self.cdict = {"exclude": -1, "sl. straight": 0, "f. straight": 1, "sl. turn": 2, "f. turn": 3}
+        self.cat_decode = {v: k for k, v in self.cdict.items()}
+        # load data from file and process
+        x_c, y_c, heading, inmiddle, phase = self.load_data(fileobj)
+        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), 21)
+        ispeed = ComputeInstantSpeed(x_f, y_f, self.datarate)
+        # detect and store bouts
+        self.bouts = self._detect_bouts(ispeed)
+        # for each bout compute the distance between start and endpoint as well as the heading change
+        bstarts = self.bouts[:, 0].astype(int)
+        bends = self.bouts[:, 2].astype(int)
+        self.bout_pspeeds = self.bouts[:, -1]
+        self.bout_thetas = np.abs(AssignDeltaAnglesToBouts(self.bouts, heading)[0])
+        self.bout_categories = np.zeros(self.bouts.shape[0], dtype=np.int32)
+        for i, (bs, be, r, t) in enumerate(zip(bstarts, bends, self.bout_pspeeds, self.bout_thetas)):
+            if not inmiddle[bs]:
+                self.bout_categories[i] = self.cdict["exclude"]
+            else:
+                if r <= 149 and np.abs(t) <= 5:  # slow straight
+                    self.bout_categories[i] = self.cdict["sl. straight"]
+                elif r > 149 and np.abs(t) <= 5:  # fast (top 50%) straight
+                    self.bout_categories[i] = self.cdict["f. straight"]
+                elif r <= 149 and np.abs(t) > 5:  # slow turn
+                    self.bout_categories[i] = self.cdict["sl. turn"]
+                elif r > 149 and np.abs(t) > 5:  # fast turn
+                    self.bout_categories[i] = self.cdict["f. turn"]
+                else:
+                    self.bout_categories[i] = self.cdict["exclude"]
+        self._compute_fits(100, 30, x_f, y_f)
+
+    def _detect_bouts(self, instantSpeed):
+        """
+        Bout detection.
+        :param instantSpeed: The instant speed trace
+        :return: Bouts matrix
+        """
+        return DetectBouts(instantSpeed, 20, self.datarate)
+
+    def _extract_data(self, data):
+        """
+        Extracts the raw data of AFAP experiments
+        :param data: The raw data array of the Experiment
+        :return: x, y, heading, inmiddle, experiment phase
+        """
+        x = data[:, 0]
+        y = data[:, 1]
+        inmiddle = data[:, 4].astype(bool)
+        heading = data[:, 2]
+        phase = data[:, 3]
+        return x, y, heading, inmiddle, phase
+
+    def plot_boutScatter(self):
+        """
+        Plots a scatter plot of total bout turn angle versus bout peak speed for
+        the different categories
+        :return: figure and axis
+        """
+        with sns.axes_style('whitegrid'):
+            fig, ax = pl.subplots()
+            cols = sns.color_palette("deep", len(self.cdict) - 1)
+            for k in sorted(self.cat_decode.keys()):
+                if k == -1:
+                    continue
+                ax.scatter(self.bout_pspeeds[self.bout_categories == k] * self.pixelsize,
+                           self.bout_thetas[self.bout_categories == k], c=cols[k], s=10, alpha=0.7,
+                           label=self.cat_decode[k])
+            ax.legend()
+            ax.set_xlim(0)
+            ax.set_ylim(0, 180)
+            sns.despine(fig, ax)
+            ax.set_xlabel('Bout peak speed [mm / s]')
+            ax.set_ylabel('Bout delta-angle [degrees]')
+        return fig, ax
+
+    @staticmethod
+    def load_experiments():
+        """
+        Presents dialog to user to load data file and extract data
+        :return: List of WN experiments
+        """
+        fname = UiGetFile(diagTitle="Load WN file", multiple=False)
+        file_obj = h5py.File(fname, 'r')
+        keys = file_obj.keys()
+        exps = []
+        for k in keys:
+            exps.append(WN_Experiment(k, fname, file_obj))
+        return exps
+
+
 class LogLogFit:
     """
     Creates a log(curvature) log(angular velocity) fit and stores the retrieved information
