@@ -613,6 +613,18 @@ class Experiment:
             fig.tight_layout()
         return fig, axes
 
+    def plot_boutScatter(self):
+        """
+        Subclass specific plot to plot characteristica relevant to the
+        different bout categories
+        :return: None
+        """
+        return None
+
+    @staticmethod
+    def load_experiments():
+        return []
+
 
 class AFAP_Experiment(Experiment):
     """
