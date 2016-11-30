@@ -970,6 +970,46 @@ class Analyzer:
             self._save_figure("Beta_K_development", fig)
         return fig, (ax_b, ax_k)
 
+    @property
+    def all_displacements(self):
+        """
+        Concatenation of all experiment's bout displacements
+        """
+        try:
+            return np.hstack([e.bouts[:, -2] for e in self.experiments]).ravel()
+        except AttributeError:
+            return None
+
+    @property
+    def all_pSpeeds(self):
+        """
+        Concatenation of all experiment's bout peak speeds
+        """
+        try:
+            return np.hstack([e.bouts[:, -1] for e in self.experiments]).ravel()
+        except AttributeError:
+            return None
+
+    @property
+    def all_thetas(self):
+        """
+        Concatenation of all experiment's turn angles
+        """
+        try:
+            return np.hstack([e.bout_thetas] for e in self.experiments).ravel()
+        except AttributeError:
+            return None
+
+    @property
+    def all_categories(self):
+        """
+        Concatenation of all experiment's bout categories
+        """
+        try:
+            return np.hstack([e.bout_categories] for e in self.experiments).ravel()
+        except AttributeError:
+            return None
+
 
 class LogLogFit:
     """
