@@ -190,7 +190,7 @@ def SmoothenTrack(xpos, ypos, window_len):
     return xpos, ypos
 
 
-def ComputeInstantSpeed(xpos, ypos, frameRate=250):
+def ComputeInstantSpeed(xpos, ypos, frameRate=250) -> np.ndarray:
     """
     Takes a (smoothened) x and y position trace and computes the instant speed
     in pixels per second
@@ -400,7 +400,7 @@ class Experiment:
         self.bout_curves = []
         self.bout_aspeeds = []
         self.bout_tang_vels = []
-        self.bouts = []
+        self.bouts = np.array([])
         self.bout_categories = []
         # counter that gets appended to id string to form figure name to ensure each figure is unique
         self.fig_num = 0
@@ -438,7 +438,7 @@ class Experiment:
         """
         return None, None, None, None
 
-    def _detect_bouts(self, instantSpeed):
+    def _detect_bouts(self, instantSpeed) -> np.ndarray:
         """
         Bout detection. Subclasses should override to tune parameters
         :param instantSpeed: The instant speed trace
@@ -921,7 +921,8 @@ class Analyzer:
                     continue
                 bc = np.vstack([np.log10(bc[0]) for bc in self.bout_curves if bc[1] == k and np.sum(bc[0] == 0) == 0])
                 ba = np.vstack([np.log10(ba[0]) for ba in self.bout_aspeeds if ba[1] == k and np.sum(ba[0] == 0) == 0])
-                bv = np.vstack([np.log10(bv[0]) for bv in self.bout_tang_vels if bv[1] == k and np.sum(bv[0] == 0) == 0])
+                bv = np.vstack([np.log10(bv[0]) for bv in self.bout_tang_vels if bv[1] == k
+                                and np.sum(bv[0] == 0) == 0])
                 plotTime = np.arange(bc.shape[1]) / self.experiments[0].datarate * 1000 - pre_start
                 sns.tsplot(data=bc, time=plotTime, estimator=np.nanmean, ci=95, color=cols[k], ax=ax_c, n_boot=500)
                 sns.tsplot(data=ba, time=plotTime, estimator=np.nanmean, ci=95, color=cols[k], ax=ax_a, n_boot=500)
