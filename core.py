@@ -507,8 +507,8 @@ class Experiment:
         relTimes = relTimes[np.logical_not(nan_vals)]
         # compute linear fits and add to lists
         for categ in self.cat_decode.keys():
-            if categ == -1:
-                # don't add fit for bouts in exclude category
+            if categ == -1 or np.sum(categories == categ) == 0:
+                # don't add fit for bouts in exclude category or empty categories
                 continue
             ft = LogLogFit(curvatures, ang_speeds, relTimes, categories == categ, categ, self.filename+'/'+self.key)
             self.fits.append(ft)
