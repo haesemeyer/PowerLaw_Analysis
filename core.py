@@ -857,6 +857,7 @@ class SMCExperiment(Experiment):
         :param fileobj: Dictionary object with the file data
         """
         super().__init__(key, filename, 700, 1 / 9)
+        self.filter_window = 23  # these experiments are somewhat noisier due to lower spatial resolution than AFAP
         if fileobj is None or key not in fileobj:
             raise ValueError("file_obj has to be dictionary with <key> as key")
             # override default dictionaries
@@ -892,7 +893,7 @@ class SMCExperiment(Experiment):
         :param instantSpeed: The instant speed trace
         :return: Bouts matrix
         """
-        return DetectBouts(instantSpeed, 50, self.datarate, speedThresholdAbsolute=35, maxFramesAtPeak=10)
+        return DetectBouts(instantSpeed, 50, self.datarate, speedThresholdAbsolute=18, maxFramesAtPeak=10)
 
     def _extract_data(self, data):
         """
