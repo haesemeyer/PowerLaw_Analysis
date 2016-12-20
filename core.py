@@ -608,6 +608,8 @@ class Experiment:
         with sns.axes_style('whitegrid'):
             cols = sns.color_palette("deep", len(self.fits))
             fig, axes = pl.subplots(ncols=len(self.fits), sharey=True, sharex=True, num=self.ID)
+            if len(self.fits) == 1:
+                axes = [axes]
             for i, f in enumerate(sorted(self.fits, key=lambda x: x.category)):
                 f.PlotFit(axes[i], color=cols[i])
                 if i == 0:
