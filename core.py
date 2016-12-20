@@ -841,6 +841,113 @@ class WN_Experiment(Experiment):
         return exps
 
 
+class SMCExperiment(Experiment):
+    """
+    Describes a simple spontaneous behavior experiment in fish-water
+    or 0.25% methyl cellulose
+    """
+
+    def __init__(self, key, filename, fileobj):
+        """
+        Creates a new SMCExperiment
+        :param key: The key under which the data is stored
+        :param filename: The name of the hdf5 file containing the data
+        :param fileobj: Dictionary object with the file data
+        """
+        super().__init__(key, filename, 700, 1 / 9)
+        if fileobj is None or key not in fileobj:
+            raise ValueError("file_obj has to be dictionary with <key> as key")
+            # override default dictionaries
+        self.cdict = {"exclude": -1, "fishwater": 0, "meth. cell.": 1}
+        self.cat_decode = {v: k for k, v in self.cdict.items()}
+        # load data from file and process
+        x_c, y_c, heading, inmiddle = self.load_data(fileobj)
+        x_f, y_f = SmoothenTrack(x_c.copy(), y_c.copy(), self.filter_window)
+        ispeed = ComputeInstantSpeed(x_f, y_f, self.datarate)
+        # detect and store bouts
+        self.bouts = self._detect_bouts(ispeed)
+        # for each bout compute the distance between start and endpoint as well as the heading change
+        bstarts = self.bouts[:, 0].astype(int)
+        bends = self.bouts[:, 2].astype(int)
+        self.bout_pspeeds = self.bouts[:, -1]
+        self.bout_thetas = np.abs(AssignDeltaAnglesToBouts(self.bouts, heading)[0])
+        self.bout_categories = np.zeros(self.bouts.shape[0], dtype=np.int32)
+        # globally for all bouts in the experiment the key determines the category!
+        self.is_meth_cell = key == "mc_data"
+        for i, (bs, be) in enumerate(zip(bstarts, bends)):
+            if not inmiddle[bs]:
+                self.bout_categories[i] = self.cdict["exclude"]
+            else:
+                if self.is_meth_cell:
+                    self.bout_categories[i] = self.cdict["meth. cell."]
+                else:
+                    self.bout_categories[i] = self.cdict["fishwater"]
+        self._compute_fits(300, 30, x_f, y_f)
+
+    def _detect_bouts(self, instantSpeed):
+        """
+        Bout detection.
+        :param instantSpeed: The instant speed trace
+        :return: Bouts matrix
+        """
+        return DetectBouts(instantSpeed, 50, self.datarate, speedThresholdAbsolute=35, maxFramesAtPeak=10)
+
+    def _extract_data(self, data):
+        """
+        Extracts the raw data of AFAP experiments
+        :param data: The raw data array of the Experiment
+        :return: x, y, heading, inmiddle
+        """
+        x = data[:, 1]
+        y = data[:, 2]
+        inmiddle = data[:, 4].astype(bool)
+        heading = data[:, 3]
+        return x, y, heading, inmiddle
+
+    def plot_boutScatter(self):
+        """
+        Plots a scatter plot of total bout turn angle versus bout peak speed for
+        the different categories
+        :return: figure and axis
+        """
+        with sns.axes_style('whitegrid'):
+            fig, ax = pl.subplots(num=self.ID)
+            cols = sns.color_palette("deep", len(self.cdict) - 1)
+            for k in sorted(self.cat_decode.keys()):
+                if k == -1:
+                    continue
+                ax.scatter(self.bout_pspeeds[self.bout_categories == k] * self.pixelsize,
+                           self.bout_thetas[self.bout_categories == k], c=cols[k], s=10, alpha=0.7,
+                           label=self.cat_decode[k])
+            ax.legend()
+            ax.set_xlim(0)
+            ax.set_ylim(0, 180)
+            sns.despine(fig, ax)
+            ax.set_xlabel('Bout peak speed [mm / s]')
+            ax.set_ylabel('Bout delta-angle [degrees]')
+        return fig, ax
+
+    @staticmethod
+    def load_experiments():
+        """
+        Presents dialog to user to load data file and extract data
+        :return: List of SMC experiments
+        """
+        fnames = UiGetFile(diagTitle="Load Simple methyl cellulose file", multiple=True)
+        if type(fnames) is str:
+            fnames = [fnames]
+        exps = []
+        for f in fnames:
+            file_obj = h5py.File(f, 'r')
+            if "fw_data" in file_obj:
+                exps.append(SMCExperiment("fw_data", f, file_obj))
+            elif "mc_data" in file_obj:
+                exps.append(SMCExperiment("mc_data", f, file_obj))
+            else:
+                ValueError("File " + f + " does not reference SMCExperiment")
+        return exps
+
+
 class Analyzer:
     """
     Class to analyze experiments of a given class
