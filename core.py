@@ -1058,8 +1058,8 @@ class Analyzer:
             for key in self.cat_decode:
                 if key == -1:
                     continue
-                timed_beta = np.zeros((len(self.experiments), rt_centers.size))
-                timed_k = np.zeros_like(timed_beta)
+                timed_beta = np.full((len(self.experiments), rt_centers.size), np.nan)
+                timed_k = timed_beta.copy()
                 count = 0
                 for ft in self.fits:
                     if ft.category == key:
@@ -1069,8 +1069,9 @@ class Analyzer:
                             timed_beta[count, j] = beta
                             timed_k[count, j] = k
                         count += 1
-                sns.tsplot(data=timed_beta, time=rt_centers, color=cols[key], ax=ax_b, interpolate=False, ci=95)
-                sns.tsplot(data=timed_k, time=rt_centers, color=cols[key], ax=ax_k, interpolate=False, ci=95)
+                nnr = np.sum(np.isnan(timed_beta), 1) == 0
+                sns.tsplot(data=timed_beta[nnr, :], time=rt_centers, color=cols[key], ax=ax_b, interpolate=False, ci=95)
+                sns.tsplot(data=timed_k[nnr, :], time=rt_centers, color=cols[key], ax=ax_k, interpolate=False, ci=95)
             ax_b.plot([0.5, 0.5], ax_b.get_ylim(), "k--")
             ax_b.set_ylabel("Slope $\\beta$")
             ax_k.plot([0.5, 0.5], ax_k.get_ylim(), "k--")
