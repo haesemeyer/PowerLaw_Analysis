@@ -13,12 +13,14 @@ from peakfinder import peakdet
 from scipy.signal import filtfilt
 from scipy import interpolate
 from scipy.stats import linregress
+from scipy.stats.mstats import mquantiles
 import matplotlib.pyplot as pl
 import seaborn as sns
 import matplotlib.cm as cm
 import h5py
 import pandas
 import os
+import warnings
 
 
 def UiGetFile(filetypes=[('Matlab file', '.mat')], diagTitle="Load files", multiple=True):
@@ -380,6 +382,43 @@ def cut_and_pad(trace, size):
         retval = np.full(size, np.nan)
         retval[:trace.size] = trace
         return retval
+
+
+def emp_resample(take_from: np.ndarray, according_to: np.ndarray, nsamples, nbins) -> np.ndarray:
+    """
+    Tries to randomly sample with replacement from one distribution to match another empirical distribution
+    :param take_from: The values from which to sample
+    :param according_to: The values of the empirical distribution to match
+    :param nsamples: The number of samples to draw with replacement
+    :param nbins: The number of bins, all with take_from.size/nbins elements, used to describe the distribution
+    :return: An array of indices making up the samples
+    """
+
+    def get_bin_edges():
+        d = np.random.rand()
+        for j, (lower, upper) in enumerate(zip(b_edges[:-1], b_edges[1:])):
+            if d < quants[j+1]:
+                return lower, upper
+        raise ValueError("d larger than upper quantile bound")
+
+    # create bin edges such that each bin contains the the same amount of data in the empirical distribution
+    # this means, that each of those bins should be sampled with equal likelihood later
+    quants = np.linspace(0, 1, nbins+1, endpoint=True)
+    b_edges = mquantiles(according_to, quants)
+
+    # check for empty or severely undersized bins in take_from
+    h_from = np.histogram(take_from, b_edges)[0]
+    if np.sum(h_from == 0) > 0:
+        raise ValueError("At least one resampling bin is empty. Decrease nbins.")
+    elif h_from.min() * 10 < h_from.max():
+        warnings.warn("At least one resampling bin is strongly under-represented. Consider decreasing nbins.")
+    tf_indices = np.arange(take_from.size)
+    samples = np.zeros(nsamples, dtype=int)
+    for i in range(nsamples):
+        l, u = get_bin_edges()
+        ix_in_bin = tf_indices[np.logical_and(take_from >= l, take_from < u)]
+        samples[i] = ix_in_bin[np.random.randint(0, ix_in_bin.size)]
+    return samples
 
 
 class Experiment:
