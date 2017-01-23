@@ -495,16 +495,25 @@ class Experiment:
         :param x_f: The filtered x-coordinates across the experiment
         :param y_f: The filtered y-coordinates across the experiment
         """
+        # store development of indicators around bout starts
         self.bout_curves = []
         self.bout_aspeeds = []
         self.bout_tang_vels = []
+        # store one fit per category in this experiment
         self.fits = []
         self.pre_start_ms = pre_start_ms
+        # store the raw values used for fit computation using a dictionary
+        # with the bout index as Key
+        self.raw_curves = {}
+        self.raw_aspeeds = {}
+        self.raw_tang_vels = {}
+        self.raw_relTimes = {}
+        self.raw_categories = {}
         ang_speeds = np.array([])
         curvatures = np.array([])
         categories = np.array([])
         relTimes = np.array([])  # relative time within bout: 0-0.5 is before peak speed, 0.5-1 after till end of bout
-        for b, categ in zip(self.bouts, self.bout_categories):
+        for i, (b, categ) in enumerate(zip(self.bouts, self.bout_categories)):
             if b[1] < b[0] or b[1] == b[0]:
                 # skip odd bout calls
                 continue
@@ -535,6 +544,10 @@ class Experiment:
             curvatures = np.r_[curvatures, curve]
             categories = np.r_[categories, ct]
             relTimes = np.r_[relTimes, rel_time]
+            self.raw_aspeeds[i] = a_spd
+            self.raw_curves[i] = curve
+            self.raw_tang_vels[i] = tangv
+            self.raw_categories[i] = ct
             self.bout_curves.append((cut_and_pad(curve, int(130 / 1000 * self.datarate)), categ))
             self.bout_aspeeds.append((cut_and_pad(a_spd, int(130 / 1000 * self.datarate)), categ))
             self.bout_tang_vels.append((cut_and_pad(tangv, int(130 / 1000 * self.datarate)), categ))
@@ -885,7 +898,7 @@ class WN_Experiment(Experiment):
 class SMCExperiment(Experiment):
     """
     Describes a simple spontaneous behavior experiment in fish-water
-    or 0.25% methyl cellulose
+    or methyl cellulose
     """
 
     def __init__(self, key, filename, fileobj):
@@ -1160,6 +1173,23 @@ class Analyzer:
             return np.hstack([e.bout_categories] for e in self.experiments).ravel()
         except AttributeError:
             return None
+
+    @property
+    def all_eid(self):
+        """
+        Vector with length of total number of bouts and the experiment
+        index in each position
+        """
+        return np.hstack([np.full(e.bouts.shape[0], i, dtype=np.int16)] 
+            for i,e in enumerate(self.experiments)).ravel()
+
+    @property
+    def all_bout_ix(self):
+        """
+        Returns the original in-experiment bout indices for each
+        bout across all experiments
+        """
+        return np.hstack([np.arange(e.bouts.shape[0])] for e in self.experiments).ravel()
 
 
 class LogLogFit:
