@@ -548,6 +548,7 @@ class Experiment:
             self.raw_curves[i] = curve
             self.raw_tang_vels[i] = tangv
             self.raw_categories[i] = ct
+            self.raw_relTimes[i] = rel_time
             self.bout_curves.append((cut_and_pad(curve, int(130 / 1000 * self.datarate)), categ))
             self.bout_aspeeds.append((cut_and_pad(a_spd, int(130 / 1000 * self.datarate)), categ))
             self.bout_tang_vels.append((cut_and_pad(tangv, int(130 / 1000 * self.datarate)), categ))
