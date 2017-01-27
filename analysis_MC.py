@@ -77,7 +77,7 @@ def fit_resample(analyzer):
                     categories = np.r_[categories, c]
                     relTimes = np.r_[relTimes, rt]
         ft = core.LogLogFit(curvatures, ang_speeds, relTimes, categories != is_fw_exp,
-                int(is_fw_exp), e.filename+'/resampled')
+                1 - int(is_fw_exp), e.filename+'/resampled')
         resampled.fits.append(ft)
     return resampled
 
